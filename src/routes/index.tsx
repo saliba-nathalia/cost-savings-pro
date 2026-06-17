@@ -701,94 +701,97 @@ function Index() {
         {/* Single-column wizard */}
         <main className="mx-auto max-w-4xl space-y-8 px-6 pb-24 lg:px-10">
           {/* Step 01 */}
-          {showStep1 ? (
-            <Section title="Opportunity Setup" eyebrow="01">
-              <Field label="Customer Name">
-                <Input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Acme Corporation"
-                />
-              </Field>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field
-                  label="Deal Stage"
-                  tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
-                >
-                  <Select value={dealStage} onValueChange={setDealStage}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
-                        (s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Currency">
-                  <Select
-                    value={currency}
-                    onValueChange={(v) => setCurrency(v as CurrencyCode)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {CURRENCIES[c].label}
+          <Section
+            title="Opportunity Setup"
+            eyebrow="01"
+            collapsible={step01Complete}
+            open={step1Open}
+            onToggle={() => setStep1Open((o) => !o)}
+            summary={
+              step01Complete
+                ? `${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`
+                : undefined
+            }
+            complete={step01Complete}
+          >
+            <Field label="Customer Name">
+              <Input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Acme Corporation"
+              />
+            </Field>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field
+                label="Deal Stage"
+                tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
+              >
+                <Select value={dealStage} onValueChange={setDealStage}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
+                      (s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <Field label="Use Cases (select one or more)">
-                <div className="grid grid-cols-1 gap-3">
-                  <UseCaseCard
-                    active={hasAutomation}
-                    title="Cost Savings / Automation"
-                    desc="AI deflects interactions from human agents."
-                    onClick={() => toggleUseCase("automation")}
-                  />
-                  <UseCaseCard
-                    active={hasP2M}
-                    title="Cost Savings / Phone to Messaging"
-                    desc="Shift volume from voice to lower-cost messaging."
-                    onClick={() => toggleUseCase("phone_to_messaging")}
-                  />
-                  <UseCaseCard
-                    active={hasStaffing}
-                    title="Workforce Sizing & Staffing Analysis"
-                    desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
-                    onClick={() => toggleUseCase("staffing")}
-                  />
-                </div>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
               </Field>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleContinueFromStep1}
-                  disabled={!step01Complete}
+              <Field label="Currency">
+                <Select
+                  value={currency}
+                  onValueChange={(v) => setCurrency(v as CurrencyCode)}
                 >
-                  Continue
-                </Button>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {CURRENCIES[c].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <Field label="Use Cases (select one or more)">
+              <div className="grid grid-cols-1 gap-3">
+                <UseCaseCard
+                  active={hasAutomation}
+                  title="Cost Savings / Automation"
+                  desc="AI deflects interactions from human agents."
+                  onClick={() => toggleUseCase("automation")}
+                />
+                <UseCaseCard
+                  active={hasP2M}
+                  title="Cost Savings / Phone to Messaging"
+                  desc="Shift volume from voice to lower-cost messaging."
+                  onClick={() => toggleUseCase("phone_to_messaging")}
+                />
+                <UseCaseCard
+                  active={hasStaffing}
+                  title="Workforce Sizing & Staffing Analysis"
+                  desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
+                  onClick={() => toggleUseCase("staffing")}
+                />
               </div>
-            </Section>
-          ) : (
-            <SummaryChip
-              eyebrow="01"
-              title="Opportunity Setup"
-              summary={`${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`}
-              onEdit={() => setEditingStep(1)}
-            />
-          )}
+            </Field>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleContinueFromStep1}
+                disabled={!step01Complete}
+              >
+                Continue
+              </Button>
+            </div>
+          </Section>
 
           {/* Step 02 */}
           {showStep2 ? (
