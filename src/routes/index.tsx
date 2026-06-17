@@ -178,6 +178,12 @@ function Index() {
   const [hourlyCost, setHourlyCost] = useState(HOURLY_DEFAULTS["in_house"]);
   const [aht, setAht] = useState(8);
 
+  // Channel-specific AHTs (optional override of blended AHT for workforce modeling)
+  const [useChannelAht, setUseChannelAht] = useState(false);
+  const [voiceAht, setVoiceAht] = useState(BENCHMARK_AHT.voice);
+  const [emailAht, setEmailAht] = useState(BENCHMARK_AHT.email);
+  const [messagingAht, setMessagingAht] = useState(BENCHMARK_AHT.messaging);
+
   const derivedFromHourly = (hourlyCost / 60) * aht;
   const humanCost =
     costMode === "interaction" ? costPerInteraction : derivedFromHourly;
