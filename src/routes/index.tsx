@@ -1237,21 +1237,7 @@ function Index() {
                 </div>
               )}
             </Section>
-          ) : step01Complete && !showStep1 ? (
-            <SummaryChip
-              eyebrow="02"
-              title="Data Inputs"
-              summary={
-                dataSource === null
-                  ? "Not started"
-                  : dataSource === "actual"
-                    ? "Using customer data"
-                    : "Using assumptions"
-              }
-              onEdit={() => setEditingStep(2)}
-              dim={!step02Ready}
-            />
-          ) : null}
+          )}
 
           {/* Step 03 — Results */}
           {showStep3 && (
