@@ -2176,27 +2176,71 @@ function BreakdownRow({
 
 function PresentationView({
   onClose,
+  onEdit,
   customerName,
   dealStage,
   currency,
   advisor,
   total,
   fmt,
+  setup,
+  inputs,
+  automationCalc,
+  p2mCalc,
+  workforce,
 }: {
   onClose: () => void;
+  onEdit: () => void;
   customerName: string;
   dealStage: string;
   currency: string;
   advisor: any;
   total: any;
   fmt: any;
+  setup: { useCaseLabels: string[]; dataSource: DataSource };
+  inputs: any;
+  automationCalc: any;
+  p2mCalc: any;
+  workforce: any;
 }) {
   const [copied, setCopied] = useState(false);
 
   const buildPlainText = () => {
     const lines: string[] = [];
     lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
-    lines.push(`${dealStage} · ${currency}`);
+    lines.push(`${dealStage} · ${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
+    lines.push("");
+    lines.push("OPPORTUNITY SETUP");
+    lines.push(`• Customer: ${customerName || "Untitled"}`);
+    lines.push(`• Deal stage: ${dealStage}`);
+    lines.push(`• Currency: ${currency}`);
+    lines.push(`• Use cases: ${setup.useCaseLabels.join(", ") || "—"}`);
+    lines.push(`• Data source: ${setup.dataSource === "actual" ? "Actual customer data" : setup.dataSource === "assumption" ? "Assumptions / benchmarks" : "—"}`);
+    lines.push("");
+    lines.push("DATA INPUTS");
+    if (inputs.hasAutomation) {
+      lines.push(`• Annual volume: ${fmtNumber(inputs.annualVolume)}`);
+      lines.push(`• Containment: ${inputs.containment}% (${inputs.containmentMode === "guided" ? inputs.automationTypeLabel : "manual"})`);
+      lines.push(`• Human cost / interaction: ${fmt.fmtCurrency2(inputs.humanCost)}`);
+      lines.push(`• AI cost / interaction: ${fmt.fmtCurrency2(inputs.aiCost)}`);
+      lines.push(`• Software investment: ${fmt.fmtCurrency(inputs.softwareInvestment)}`);
+    }
+    if (inputs.hasP2M) {
+      lines.push(`• Phone volume: ${fmtNumber(inputs.p2mPhoneVolume)}`);
+      lines.push(`• Deflection to messaging: ${inputs.p2mDeflection}%`);
+      lines.push(`• Phone cost: ${fmt.fmtCurrency2(inputs.p2mPhoneCost)} · Messaging cost: ${fmt.fmtCurrency2(inputs.p2mMessagingCost)}`);
+      lines.push(`• P2M software: ${fmt.fmtCurrency(inputs.p2mSoftware)}`);
+    }
+    if (inputs.hasStaffing) {
+      lines.push(`• Channel mix — phone ${inputs.phonePct}% / messaging ${inputs.messagingPct}% / email ${inputs.emailPct}%`);
+      if (inputs.useChannelAht) {
+        lines.push(`• Channel AHT — voice ${inputs.voiceAht}m, email ${inputs.emailAht}m, messaging ${inputs.messagingAht}m`);
+      } else {
+        lines.push(`• Blended AHT: ${inputs.aht} min`);
+      }
+      lines.push(`• Occupancy ${inputs.occupancy}% · Shrinkage ${inputs.shrinkage}%`);
+      lines.push(`• Hourly cost: ${fmt.fmtCurrency(inputs.hourlyCost)} (${inputs.supportModelLabel})`);
+    }
     lines.push("");
     lines.push("HEADLINE");
     lines.push(advisor.headline);
@@ -2206,6 +2250,7 @@ function PresentationView({
     lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
     lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
     lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+    lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
     if (advisor.whatWeFound.length) {
       lines.push("");
       lines.push("WHAT WE FOUND");
@@ -2215,6 +2260,14 @@ function PresentationView({
       lines.push("");
       lines.push("WHAT THIS MEANS");
       lines.push(advisor.whatThisMeans);
+    }
+    if (workforce) {
+      lines.push("");
+      lines.push("STAFFING SNAPSHOT");
+      lines.push(`• Required productive hours: ${fmtNumber(workforce.requiredHours)}`);
+      lines.push(`• Baseline agents: ${workforce.baselineRequiredAgents.toFixed(0)}`);
+      lines.push(`• Post-automation agents: ${workforce.postRequiredAgents.toFixed(0)}`);
+      lines.push(`• FTE capacity freed: ${workforce.fteFreed.toFixed(0)}`);
     }
     lines.push("");
     lines.push("ASSUMPTIONS");
@@ -2242,29 +2295,39 @@ function PresentationView({
     }
   };
 
+  const InputRow = ({ k, v }: { k: string; v: string }) => (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 py-2 text-sm last:border-b-0">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="text-right font-medium tabular-nums text-foreground">{v}</span>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
-      {/* Top bar */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
           <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Presentation View
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
             <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
               <Copy className="h-3.5 w-3.5" />
               {copied ? "Copied" : "Copy all"}
             </Button>
             <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
               <X className="h-4 w-4" />
-              Back to Calculator
+              Close
             </Button>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 lg:px-10">
-        {/* Slide 1 — Title */}
+        {/* Slide — Title */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
             Outcomes Summary
@@ -2273,14 +2336,103 @@ function PresentationView({
             {customerName || "Untitled Opportunity"}
           </h2>
           <div className="mt-4 text-sm text-muted-foreground">
-            {dealStage} · {currency} · {advisor.useCases.join(" + ") || "—"}
+            {dealStage} · {currency} · {setup.useCaseLabels.join(" + ") || "—"}
           </div>
         </Slide>
 
-        {/* Slide 2 — Headline + KPIs */}
+        {/* Slide — Opportunity Setup */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Headline
+            01 · Opportunity setup
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-1 md:grid-cols-2">
+            <InputRow k="Customer" v={customerName || "—"} />
+            <InputRow k="Deal stage" v={dealStage} />
+            <InputRow k="Currency" v={currency} />
+            <InputRow k="Use cases" v={setup.useCaseLabels.join(", ") || "—"} />
+            <InputRow
+              k="Data source"
+              v={
+                setup.dataSource === "actual"
+                  ? "Actual customer data"
+                  : setup.dataSource === "assumption"
+                    ? "Assumptions / benchmarks"
+                    : "—"
+              }
+            />
+          </div>
+        </Slide>
+
+        {/* Slide — Data Inputs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            02 · Data inputs
+          </div>
+          <div className="mt-6 space-y-6">
+            {inputs.hasAutomation && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Automation
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow k="Annual volume" v={fmtNumber(inputs.annualVolume)} />
+                  <InputRow
+                    k="Containment"
+                    v={`${inputs.containment}%${inputs.containmentMode === "guided" ? ` · ${inputs.automationTypeLabel}` : ""}`}
+                  />
+                  <InputRow k="Human cost / interaction" v={fmt.fmtCurrency2(inputs.humanCost)} />
+                  <InputRow k="AI cost / interaction" v={fmt.fmtCurrency2(inputs.aiCost)} />
+                  <InputRow k="Software investment" v={fmt.fmtCurrency(inputs.softwareInvestment)} />
+                </div>
+              </div>
+            )}
+            {inputs.hasP2M && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Phone to Messaging
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow k="Phone volume" v={fmtNumber(inputs.p2mPhoneVolume)} />
+                  <InputRow k="Deflection to messaging" v={`${inputs.p2mDeflection}%`} />
+                  <InputRow k="Phone cost" v={fmt.fmtCurrency2(inputs.p2mPhoneCost)} />
+                  <InputRow k="Messaging cost" v={fmt.fmtCurrency2(inputs.p2mMessagingCost)} />
+                  <InputRow k="P2M software" v={fmt.fmtCurrency(inputs.p2mSoftware)} />
+                </div>
+              </div>
+            )}
+            {inputs.hasStaffing && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Workforce
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow
+                    k="Channel mix"
+                    v={`Phone ${inputs.phonePct}% · Msg ${inputs.messagingPct}% · Email ${inputs.emailPct}%`}
+                  />
+                  {inputs.useChannelAht ? (
+                    <InputRow
+                      k="Channel AHTs"
+                      v={`V ${inputs.voiceAht}m · E ${inputs.emailAht}m · M ${inputs.messagingAht}m`}
+                    />
+                  ) : (
+                    <InputRow k="Blended AHT" v={`${inputs.aht} min`} />
+                  )}
+                  <InputRow k="Occupancy / Shrinkage" v={`${inputs.occupancy}% / ${inputs.shrinkage}%`} />
+                  <InputRow
+                    k="Hourly cost"
+                    v={`${fmt.fmtCurrency(inputs.hourlyCost)} · ${inputs.supportModelLabel}`}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Slide>
+
+        {/* Slide — Headline + KPIs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            03 · Executive summary
           </div>
           <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
             {advisor.headline}
@@ -2293,7 +2445,7 @@ function PresentationView({
           </div>
         </Slide>
 
-        {/* Slide 3 — What we found */}
+        {/* Slide — What we found */}
         {advisor.whatWeFound.length > 0 && (
           <Slide>
             <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
@@ -2310,7 +2462,7 @@ function PresentationView({
           </Slide>
         )}
 
-        {/* Slide 4 — What this means */}
+        {/* Slide — What this means */}
         {advisor.whatThisMeans && (
           <Slide>
             <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
@@ -2322,7 +2474,50 @@ function PresentationView({
           </Slide>
         )}
 
-        {/* Slide 5 — Assumptions & Confidence */}
+        {/* Slide — Financial breakdown */}
+        {(automationCalc || p2mCalc) && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Financial breakdown
+            </div>
+            <div className="mt-6 space-y-1">
+              {automationCalc && (
+                <>
+                  <InputRow k="Automation — Baseline" v={fmt.fmtCurrency(automationCalc.baseline)} />
+                  <InputRow k="Automation — Final cost" v={fmt.fmtCurrency(automationCalc.finalCost)} />
+                  <InputRow k="Automation — Savings" v={fmt.fmtCurrency(automationCalc.savings)} />
+                </>
+              )}
+              {p2mCalc && (
+                <>
+                  <InputRow k="P2M — Baseline" v={fmt.fmtCurrency(p2mCalc.baseline)} />
+                  <InputRow k="P2M — Final cost" v={fmt.fmtCurrency(p2mCalc.finalCost)} />
+                  <InputRow k="P2M — Savings" v={fmt.fmtCurrency(p2mCalc.savings)} />
+                </>
+              )}
+              <InputRow k="Total annual savings" v={fmt.fmtCurrency(total.savings)} />
+              <InputRow k="Total software investment" v={fmt.fmtCurrency(total.software)} />
+              <InputRow k="Net benefit" v={fmt.fmtCurrency(total.netBenefit)} />
+            </div>
+          </Slide>
+        )}
+
+        {/* Slide — Staffing snapshot */}
+        {workforce && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Staffing snapshot
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <DeckKpi label="Productive Hours" value={fmtNumber(workforce.requiredHours)} />
+              <DeckKpi label="Baseline Agents" value={workforce.baselineRequiredAgents.toFixed(0)} />
+              <DeckKpi label="Post-Automation" value={workforce.postRequiredAgents.toFixed(0)} />
+              <DeckKpi label="FTE Freed" value={workforce.fteFreed.toFixed(0)} />
+            </div>
+          </Slide>
+        )}
+
+        {/* Slide — Assumptions & Confidence */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
             Assumptions & confidence
@@ -2371,8 +2566,8 @@ function PresentationView({
         </Slide>
 
         <div className="pb-8 text-center text-xs text-muted-foreground">
-          Tip: edit any input back in the calculator and these slides update
-          live. Use “Copy all” to paste a plain-text summary into your deck.
+          Tip: click “Edit” to update inputs — slides recalc live. Use “Copy all”
+          to paste a plain-text summary into your deck.
         </div>
       </div>
     </div>
