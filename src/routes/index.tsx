@@ -74,6 +74,14 @@ const AUTOMATION_TYPES: Record<
   api_5_8: { label: "Integrations / APIs (5–8 APIs)", range: [70, 75], mid: 72 },
 };
 
+// Industry benchmark AHTs in minutes (used when channel-specific values not supplied)
+const BENCHMARK_AHT = { voice: 8, email: 12, messaging: 6 };
+const BENCHMARK_RANGE = {
+  voice: "6–10 min",
+  email: "10–15 min",
+  messaging: "5–7 min",
+};
+
 const CURRENCIES: Record<
   CurrencyCode,
   { symbol: string; locale: string; label: string }
@@ -170,6 +178,12 @@ function Index() {
   const [hourlyCost, setHourlyCost] = useState(HOURLY_DEFAULTS["in_house"]);
   const [aht, setAht] = useState(8);
 
+  // Channel-specific AHTs (optional override of blended AHT for workforce modeling)
+  const [useChannelAht, setUseChannelAht] = useState(false);
+  const [voiceAht, setVoiceAht] = useState(BENCHMARK_AHT.voice);
+  const [emailAht, setEmailAht] = useState(BENCHMARK_AHT.email);
+  const [messagingAht, setMessagingAht] = useState(BENCHMARK_AHT.messaging);
+
   const derivedFromHourly = (hourlyCost / 60) * aht;
   const humanCost =
     costMode === "interaction" ? costPerInteraction : derivedFromHourly;
@@ -247,6 +261,89 @@ function Index() {
       software: p2mSoftware,
     };
   }, [hasP2M, p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
+
+  // ---- Workforce model (channel-specific when channel AHTs are provided) ----
+  const workforce = useMemo(() => {
+    // Total annual workload volume (use automation volume if present, else voice volume)
+    const totalVolume = hasAutomation ? annualVolume : voiceVolume;
+    const phoneVol = totalVolume * (phonePct / 100);
+    const msgVol = totalVolume * (messagingPct / 100);
+    const emailVol = totalVolume * (emailPct / 100);
+
+    // Workload hours per channel
+    let voiceHours: number;
+    let emailHours: number;
+    let msgHours: number;
+    if (useChannelAht) {
+      voiceHours = (phoneVol * voiceAht) / 60;
+      emailHours = (emailVol * emailAht) / 60;
+      msgHours = (msgVol * messagingAht) / 60;
+    } else {
+      voiceHours = (phoneVol * aht) / 60;
+      emailHours = (emailVol * aht) / 60;
+      msgHours = (msgVol * aht) / 60;
+    }
+    const requiredHours = voiceHours + emailHours + msgHours;
+
+    // Productive hours per agent / year
+    // 52 weeks × 40 hrs = 2080 paid hours; productive = paid × (1-shrinkage) × occupancy
+    const productiveHoursPerAgent =
+      2080 * (1 - shrinkage / 100) * (occupancy / 100);
+
+    const baselineRequiredAgents =
+      productiveHoursPerAgent > 0 ? requiredHours / productiveHoursPerAgent : 0;
+
+    // Post-automation: subtract interactions deflected (use channel-weighted AHT)
+    const weightedAht = useChannelAht
+      ? ((phonePct * voiceAht + messagingPct * messagingAht + emailPct * emailAht) /
+          (phonePct + messagingPct + emailPct || 1))
+      : aht;
+    const aiResolved = automationCalc?.aiResolved ?? 0;
+    const p2mShifted = p2mCalc?.shifted ?? 0;
+    // P2M shifts voice to messaging — model time saved on the differential
+    const p2mHoursSaved = useChannelAht
+      ? (p2mShifted * Math.max(0, voiceAht - messagingAht)) / 60
+      : 0;
+    const postHours = Math.max(
+      0,
+      requiredHours - (aiResolved * weightedAht) / 60 - p2mHoursSaved,
+    );
+    const postRequiredAgents =
+      productiveHoursPerAgent > 0 ? postHours / productiveHoursPerAgent : 0;
+
+    const fteFreed = Math.max(0, baselineRequiredAgents - postRequiredAgents);
+    const hoursFreed = Math.max(0, requiredHours - postHours);
+
+    return {
+      voiceHours,
+      emailHours,
+      msgHours,
+      requiredHours,
+      productiveHoursPerAgent,
+      baselineRequiredAgents,
+      postRequiredAgents,
+      fteFreed,
+      hoursFreed,
+      usedChannelAht: useChannelAht,
+    };
+  }, [
+    hasAutomation,
+    annualVolume,
+    voiceVolume,
+    phonePct,
+    messagingPct,
+    emailPct,
+    useChannelAht,
+    voiceAht,
+    emailAht,
+    messagingAht,
+    aht,
+    occupancy,
+    shrinkage,
+    automationCalc,
+    p2mCalc,
+  ]);
+
 
   const total = useMemo(() => {
     const baseline = (automationCalc?.baseline ?? 0) + (p2mCalc?.baseline ?? 0);
@@ -331,22 +428,50 @@ function Index() {
       customerInputs.push(`containment ${containment}%`);
     }
     assumedInputs.push(`occupancy ${occupancy}%, shrinkage ${shrinkage}%`);
+    if (useChannelAht) {
+      customerInputs.push(
+        `channel AHTs (voice ${voiceAht}m, email ${emailAht}m, messaging ${messagingAht}m)`,
+      );
+    } else {
+      assumedInputs.push(
+        `blended AHT ${aht} min applied across all channels`,
+      );
+    }
 
     lines.push(
       `Customer-provided inputs: ${customerInputs.join("; ") || "none"}. Assumed inputs: ${assumedInputs.join("; ")}.`,
     );
 
-    // Confidence
-    const confidenceFactors = [
-      dataSource === "actual",
-      containmentMode === "manual",
-      channelValid,
-    ].filter(Boolean).length;
-    const confidence =
-      confidenceFactors >= 3 ? "High" : confidenceFactors === 2 ? "Medium" : "Low";
+    // Workforce narrative
     lines.push(
-      `Confidence: ${confidence}. Based on data source (${dataSource === "actual" ? "customer data" : "assumptions"}), containment method (${containmentMode}), and channel mix validity (${channelValid ? "valid" : "invalid — totals " + channelTotal + "%"}).`,
+      useChannelAht
+        ? `Staffing and capacity estimates were calculated using channel-specific workloads across voice, email, and messaging interactions, providing a more accurate representation of operational demand. Baseline required agents: ${workforce.baselineRequiredAgents.toFixed(0)}; post-automation required: ${workforce.postRequiredAgents.toFixed(0)}; FTE capacity freed: ${workforce.fteFreed.toFixed(0)} (${fmtNumber(workforce.hoursFreed)} productive hours).`
+        : `Staffing and capacity estimates were calculated using a blended average handle time. Accuracy can be improved by providing channel-specific handling times. Baseline required agents: ${workforce.baselineRequiredAgents.toFixed(0)}; post-automation required: ${workforce.postRequiredAgents.toFixed(0)}; FTE capacity freed: ${workforce.fteFreed.toFixed(0)}.`,
     );
+    if (!useChannelAht) {
+      lines.push(
+        "Workforce calculations use a blended AHT because channel-specific handling times were not provided.",
+      );
+    }
+
+    // Confidence — weighted by quality of inputs
+    let score = 0;
+    if (dataSource === "actual") score += 2;
+    if (containmentMode === "manual") score += 2;
+    if (channelValid) score += 1;
+    if (useChannelAht) score += 2;
+    if (numberOfAgents > 0) score += 1;
+    // occupancy/shrinkage are always set (defaults), small credit if customized
+    if (occupancy !== 80 || shrinkage !== 20) score += 1;
+    // Penalties
+    if (containmentMode === "guided") score -= 1;
+    if (dataSource === "assumption") score -= 1;
+
+    const confidence = score >= 7 ? "High" : score >= 4 ? "Medium" : "Low";
+    lines.push(
+      `${confidence} Confidence. Based on data source (${dataSource === "actual" ? "customer data" : "assumptions"}), containment method (${containmentMode}), channel-mix validity (${channelValid ? "valid" : "invalid — totals " + channelTotal + "%"}), and AHT granularity (${useChannelAht ? "channel-specific" : "blended"}).`,
+    );
+
 
     return lines;
   }, [
@@ -375,6 +500,12 @@ function Index() {
     shrinkage,
     channelValid,
     channelTotal,
+    useChannelAht,
+    voiceAht,
+    emailAht,
+    messagingAht,
+    workforce,
+    numberOfAgents,
     fmt,
   ]);
 
@@ -720,6 +851,75 @@ function Index() {
                   </div>
                 </div>
               )}
+
+              {/* Workforce Modeling — channel-specific AHTs */}
+              <SubHeader title="Workforce Modeling" />
+              <div className="flex flex-wrap gap-3">
+                <RadioPill
+                  active={!useChannelAht}
+                  label="Use blended AHT"
+                  onClick={() => setUseChannelAht(false)}
+                />
+                <RadioPill
+                  active={useChannelAht}
+                  label="Use channel-specific AHTs"
+                  onClick={() => setUseChannelAht(true)}
+                />
+              </div>
+              {useChannelAht ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Field
+                      label="Voice AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.voice}. Override with customer data when available.`}
+                    >
+                      <NumberInput value={voiceAht} onChange={setVoiceAht} step={0.1} />
+                    </Field>
+                    <Field
+                      label="Email AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.email}.`}
+                    >
+                      <NumberInput value={emailAht} onChange={setEmailAht} step={0.1} />
+                    </Field>
+                    <Field
+                      label="Messaging AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.messaging}.`}
+                    >
+                      <NumberInput
+                        value={messagingAht}
+                        onChange={setMessagingAht}
+                        step={0.1}
+                      />
+                    </Field>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Defaults are industry benchmarks (voice {BENCHMARK_RANGE.voice},
+                    email {BENCHMARK_RANGE.email}, messaging {BENCHMARK_RANGE.messaging}).
+                    Override with customer-specific values for highest accuracy.
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  Workforce calculations will use a single blended AHT. Switch to
+                  channel-specific AHTs for higher fidelity staffing estimates.
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <MiniStat
+                  label="Required Productive Hours"
+                  value={fmtNumber(workforce.requiredHours)}
+                />
+                <MiniStat
+                  label="Baseline Required Agents"
+                  value={workforce.baselineRequiredAgents.toFixed(0)}
+                />
+                <MiniStat
+                  label="FTE Capacity Freed"
+                  value={workforce.fteFreed.toFixed(0)}
+                />
+              </div>
+
+
 
               {/* Automation use case inputs */}
               {hasAutomation && (
@@ -1216,6 +1416,19 @@ function PanelHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
         {title}
       </h3>
       <Separator className="mt-5" />
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-secondary/40 px-4 py-3">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 font-serif text-lg tracking-tight text-foreground tabular-nums">
+        {value}
+      </div>
     </div>
   );
 }
