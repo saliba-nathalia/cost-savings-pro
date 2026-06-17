@@ -1420,6 +1420,19 @@ function PanelHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
   );
 }
 
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-secondary/40 px-4 py-3">
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 font-serif text-lg tracking-tight text-foreground tabular-nums">
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-secondary/40 p-5">
