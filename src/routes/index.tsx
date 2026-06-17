@@ -1414,8 +1414,23 @@ function Index() {
               )}
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setEditingStep(2)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStep2Open(true);
+                    setTimeout(
+                      () =>
+                        document
+                          .getElementById("step-02")
+                          ?.scrollIntoView({ behavior: "smooth" }),
+                      50,
+                    );
+                  }}
+                >
                   Edit Inputs
+                </Button>
+                <Button variant="outline" onClick={() => setPresentationOpen(true)}>
+                  Presentation View
                 </Button>
                 <Button onClick={exportPdf}>Download Executive Summary</Button>
               </div>
