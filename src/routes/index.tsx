@@ -1833,3 +1833,231 @@ function BreakdownRow({
     </div>
   );
 }
+
+/* ---------- Presentation View (deck-friendly, copy-paste) ---------- */
+
+function PresentationView({
+  onClose,
+  customerName,
+  dealStage,
+  currency,
+  advisor,
+  total,
+  fmt,
+}: {
+  onClose: () => void;
+  customerName: string;
+  dealStage: string;
+  currency: string;
+  advisor: any;
+  total: any;
+  fmt: any;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const buildPlainText = () => {
+    const lines: string[] = [];
+    lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
+    lines.push(`${dealStage} · ${currency}`);
+    lines.push("");
+    lines.push("HEADLINE");
+    lines.push(advisor.headline);
+    lines.push("");
+    lines.push("KEY OUTCOMES");
+    lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
+    lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
+    lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
+    lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+    if (advisor.whatWeFound.length) {
+      lines.push("");
+      lines.push("WHAT WE FOUND");
+      advisor.whatWeFound.forEach((s: string) => lines.push(`• ${s}`));
+    }
+    if (advisor.whatThisMeans) {
+      lines.push("");
+      lines.push("WHAT THIS MEANS");
+      lines.push(advisor.whatThisMeans);
+    }
+    lines.push("");
+    lines.push("ASSUMPTIONS");
+    if (advisor.customerInputs.length) {
+      lines.push("From your data:");
+      advisor.customerInputs.forEach((s: string) => lines.push(`  • ${s}`));
+    }
+    if (advisor.assumedInputs.length) {
+      lines.push("Assumed defaults:");
+      advisor.assumedInputs.forEach((s: string) => lines.push(`  • ${s}`));
+    }
+    lines.push("");
+    lines.push(`Confidence: ${advisor.confidence.level}`);
+    lines.push(advisor.confidence.explanation);
+    return lines.join("\n");
+  };
+
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(buildPlainText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Presentation View
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
+              <Copy className="h-3.5 w-3.5" />
+              {copied ? "Copied" : "Copy all"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
+              <X className="h-4 w-4" />
+              Back to Calculator
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 lg:px-10">
+        {/* Slide 1 — Title */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Outcomes Summary
+          </div>
+          <h2 className="mt-4 font-serif text-4xl tracking-tight text-foreground md:text-5xl">
+            {customerName || "Untitled Opportunity"}
+          </h2>
+          <div className="mt-4 text-sm text-muted-foreground">
+            {dealStage} · {currency} · {advisor.useCases.join(" + ") || "—"}
+          </div>
+        </Slide>
+
+        {/* Slide 2 — Headline + KPIs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Headline
+          </div>
+          <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
+            {advisor.headline}
+          </p>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
+            <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+            <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
+            <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
+          </div>
+        </Slide>
+
+        {/* Slide 3 — What we found */}
+        {advisor.whatWeFound.length > 0 && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              What we found
+            </div>
+            <ul className="mt-6 space-y-4">
+              {advisor.whatWeFound.map((s: string, i: number) => (
+                <li key={i} className="flex gap-3 text-lg leading-relaxed text-foreground">
+                  <span className="mt-3 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ul>
+          </Slide>
+        )}
+
+        {/* Slide 4 — What this means */}
+        {advisor.whatThisMeans && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              What this means
+            </div>
+            <p className="mt-6 text-lg leading-relaxed text-foreground">
+              {advisor.whatThisMeans}
+            </p>
+          </Slide>
+        )}
+
+        {/* Slide 5 — Assumptions & Confidence */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Assumptions & confidence
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div>
+              <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                From your data
+              </div>
+              {advisor.customerInputs.length > 0 ? (
+                <ul className="space-y-2 text-sm text-foreground">
+                  {advisor.customerInputs.map((s: string, i: number) => (
+                    <li key={i}>· {s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No customer-provided inputs.
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Assumed defaults
+              </div>
+              {advisor.assumedInputs.length > 0 ? (
+                <ul className="space-y-2 text-sm text-foreground">
+                  {advisor.assumedInputs.map((s: string, i: number) => (
+                    <li key={i}>· {s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  None — all inputs are customer-provided.
+                </div>
+              )}
+            </div>
+          </div>
+          <Separator className="my-8" />
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Confidence: {advisor.confidence.level}
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-foreground">
+            {advisor.confidence.explanation}
+          </p>
+        </Slide>
+
+        <div className="pb-8 text-center text-xs text-muted-foreground">
+          Tip: edit any input back in the calculator and these slides update
+          live. Use “Copy all” to paste a plain-text summary into your deck.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-10 shadow-sm lg:p-14">
+      {children}
+    </div>
+  );
+}
+
+function DeckKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 font-serif text-3xl leading-none tracking-tight text-foreground tabular-nums md:text-4xl">
+        {value}
+      </div>
+    </div>
+  );
+}
