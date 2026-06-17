@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import jsPDF from "jspdf";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Info, ChevronDown, Check, Pencil, X, Copy } from "lucide-react";
+import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -665,6 +666,164 @@ function Index() {
     );
   };
 
+  /* ---------- Snapshot / Save / Share / Comments ---------- */
+  const snapshot = () => ({
+    customerName, dealStage, currency, useCases: Array.from(useCases),
+    dataSource, numberOfAgents, annualVolume, voiceVolume,
+    phonePct, messagingPct, emailPct,
+    costMode, costPerInteraction, supportModel, hourlyCost, aht,
+    useChannelAht, voiceAht, emailAht, messagingAht,
+    aiCost, softwareInvestment, containmentMode, resolutionRate, automationType,
+    p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
+    occupancy, shrinkage,
+  });
+  const applySnapshot = (s: any) => {
+    if (!s || typeof s !== "object") return;
+    const set = <T,>(v: T | undefined, fn: (x: T) => void) => {
+      if (v !== undefined && v !== null) fn(v);
+    };
+    set(s.customerName, setCustomerName);
+    set(s.dealStage, setDealStage);
+    set(s.currency, setCurrency);
+    if (Array.isArray(s.useCases)) setUseCases(new Set(s.useCases));
+    set(s.dataSource, setDataSource);
+    set(s.numberOfAgents, setNumberOfAgents);
+    set(s.annualVolume, setAnnualVolume);
+    set(s.voiceVolume, setVoiceVolume);
+    set(s.phonePct, setPhonePct);
+    set(s.messagingPct, setMessagingPct);
+    set(s.emailPct, setEmailPct);
+    set(s.costMode, setCostMode);
+    set(s.costPerInteraction, setCostPerInteraction);
+    set(s.supportModel, setSupportModel);
+    set(s.hourlyCost, setHourlyCost);
+    set(s.aht, setAht);
+    set(s.useChannelAht, setUseChannelAht);
+    set(s.voiceAht, setVoiceAht);
+    set(s.emailAht, setEmailAht);
+    set(s.messagingAht, setMessagingAht);
+    set(s.aiCost, setAiCost);
+    set(s.softwareInvestment, setSoftwareInvestment);
+    set(s.containmentMode, setContainmentMode);
+    set(s.resolutionRate, setResolutionRate);
+    set(s.automationType, setAutomationType);
+    set(s.p2mPhoneVolume, setP2mPhoneVolume);
+    set(s.p2mDeflection, setP2mDeflection);
+    set(s.p2mPhoneCost, setP2mPhoneCost);
+    set(s.p2mMessagingCost, setP2mMessagingCost);
+    set(s.p2mSoftware, setP2mSoftware);
+    set(s.occupancy, setOccupancy);
+    set(s.shrinkage, setShrinkage);
+    if (s.customerName && s.useCases?.length) {
+      setStep1Open(false);
+      setStep2Open(false);
+    }
+  };
+
+  // Hydrate from URL hash on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    const m = hash.match(/[#&]s=([^&]+)/);
+    if (!m) return;
+    try {
+      const json = decodeURIComponent(escape(atob(decodeURIComponent(m[1]))));
+      applySnapshot(JSON.parse(json));
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [savedList, setSavedList] = useState<{ name: string; ts: number }[]>([]);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [shareMsg, setShareMsg] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("outcomes-saves-index");
+      if (raw) setSavedList(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+  const handleSave = () => {
+    try {
+      const name = customerName.trim() || "Untitled";
+      const ts = Date.now();
+      const key = `outcomes-save-${name}`;
+      localStorage.setItem(key, JSON.stringify(snapshot()));
+      const next = [
+        { name, ts },
+        ...savedList.filter((s) => s.name !== name),
+      ].slice(0, 20);
+      localStorage.setItem("outcomes-saves-index", JSON.stringify(next));
+      setSavedList(next);
+      setSaveMsg(`Saved “${name}”`);
+      setTimeout(() => setSaveMsg(""), 2200);
+    } catch {
+      setSaveMsg("Could not save");
+      setTimeout(() => setSaveMsg(""), 2200);
+    }
+  };
+  const handleLoad = (name: string) => {
+    try {
+      const raw = localStorage.getItem(`outcomes-save-${name}`);
+      if (raw) applySnapshot(JSON.parse(raw));
+    } catch { /* ignore */ }
+  };
+  const handleDeleteSave = (name: string) => {
+    localStorage.removeItem(`outcomes-save-${name}`);
+    const next = savedList.filter((s) => s.name !== name);
+    localStorage.setItem("outcomes-saves-index", JSON.stringify(next));
+    setSavedList(next);
+  };
+  const handleShare = async () => {
+    try {
+      const json = JSON.stringify(snapshot());
+      const b64 = btoa(unescape(encodeURIComponent(json)));
+      const url = `${window.location.origin}${window.location.pathname}#s=${encodeURIComponent(b64)}`;
+      await navigator.clipboard.writeText(url);
+      setShareMsg("Share link copied");
+    } catch {
+      setShareMsg("Could not copy link");
+    }
+    setTimeout(() => setShareMsg(""), 2200);
+  };
+
+  // Comments — scoped to customer name, persisted in localStorage
+  type Comment = { id: string; author: string; text: string; ts: number };
+  const commentsKey = `outcomes-comments-${customerName.trim() || "_default"}`;
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentAuthor, setCommentAuthor] = useState("");
+  const [commentText, setCommentText] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(commentsKey);
+      setComments(raw ? JSON.parse(raw) : []);
+    } catch {
+      setComments([]);
+    }
+  }, [commentsKey]);
+  const addComment = () => {
+    const text = commentText.trim();
+    if (!text) return;
+    const next: Comment[] = [
+      ...comments,
+      {
+        id: Math.random().toString(36).slice(2),
+        author: commentAuthor.trim() || "Anonymous",
+        text,
+        ts: Date.now(),
+      },
+    ];
+    setComments(next);
+    localStorage.setItem(commentsKey, JSON.stringify(next));
+    setCommentText("");
+  };
+  const removeComment = (id: string) => {
+    const next = comments.filter((c) => c.id !== id);
+    setComments(next);
+    localStorage.setItem(commentsKey, JSON.stringify(next));
+  };
+
   /* ---------- Render ---------- */
   return (
     <TooltipProvider delayDuration={150}>
@@ -683,11 +842,21 @@ function Index() {
                 </div>
               </div>
             </div>
-            {showStep3 && (
-              <Button variant="outline" onClick={exportPdf} className="rounded-full">
-                Download Executive Summary
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={handleSave} className="rounded-full gap-1.5">
+                <Save className="h-3.5 w-3.5" />
+                {saveMsg || "Save"}
               </Button>
-            )}
+              <Button variant="outline" size="sm" onClick={handleShare} className="rounded-full gap-1.5">
+                <Share2 className="h-3.5 w-3.5" />
+                {shareMsg || "Share"}
+              </Button>
+              {showStep3 && (
+                <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
+                  Download PDF
+                </Button>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1416,6 +1585,7 @@ function Index() {
               <div className="flex flex-wrap justify-end gap-3 pt-2">
                 <Button
                   variant="outline"
+                  className="gap-1.5"
                   onClick={() => {
                     setStep2Open(true);
                     setTimeout(
@@ -1427,14 +1597,134 @@ function Index() {
                     );
                   }}
                 >
-                  Edit Inputs
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
                 </Button>
                 <Button variant="outline" onClick={() => setPresentationOpen(true)}>
                   Presentation View
                 </Button>
-                <Button onClick={exportPdf}>Download Executive Summary</Button>
+                <Button onClick={exportPdf}>Download PDF</Button>
               </div>
             </Section>
+          )}
+
+          {/* Comments */}
+          {showStep3 && (
+            <section id="comments">
+              <div className="mb-5 flex items-baseline gap-3">
+                <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+                  04
+                </span>
+                <h2 className="font-serif text-2xl tracking-tight text-foreground">
+                  Comments
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  · {comments.length} {comments.length === 1 ? "note" : "notes"}
+                </span>
+              </div>
+              <div className="space-y-4 rounded-xl border border-border bg-card p-6 lg:p-8">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[200px,1fr]">
+                  <Input
+                    value={commentAuthor}
+                    onChange={(e) => setCommentAuthor(e.target.value)}
+                    placeholder="Your name"
+                  />
+                  <Textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Share context, questions, or assumptions to discuss with your team…"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={addComment} disabled={!commentText.trim()} className="gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Post comment
+                  </Button>
+                </div>
+                {comments.length > 0 && (
+                  <>
+                    <Separator />
+                    <ul className="space-y-4">
+                      {comments
+                        .slice()
+                        .sort((a, b) => b.ts - a.ts)
+                        .map((c) => (
+                          <li key={c.id} className="flex gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-foreground">
+                              {(c.author || "?").slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-medium text-foreground">
+                                  {c.author}
+                                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                    {new Date(c.ts).toLocaleString()}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => removeComment(c.id)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  aria-label="Delete comment"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                                {c.text}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                )}
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  Comments are scoped to this customer name and stored in your
+                  browser. Share the link (top right) to invite teammates to add
+                  their own notes.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Saved scenarios */}
+          {savedList.length > 0 && (
+            <section>
+              <div className="mb-5 flex items-baseline gap-3">
+                <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+                  ★
+                </span>
+                <h2 className="font-serif text-2xl tracking-tight text-foreground">
+                  Saved scenarios
+                </h2>
+              </div>
+              <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                {savedList.map((s) => (
+                  <li key={s.name} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">{s.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(s.ts).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleLoad(s.name)}>
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteSave(s.name)}
+                        aria-label="Delete saved scenario"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </main>
 
@@ -1449,12 +1739,60 @@ function Index() {
         {presentationOpen && showStep3 && (
           <PresentationView
             onClose={() => setPresentationOpen(false)}
+            onEdit={() => {
+              setPresentationOpen(false);
+              setStep2Open(true);
+              setTimeout(
+                () =>
+                  document
+                    .getElementById("step-02")
+                    ?.scrollIntoView({ behavior: "smooth" }),
+                80,
+              );
+            }}
             customerName={customerName}
             dealStage={dealStage}
             currency={currency}
             advisor={advisor}
             total={total}
             fmt={fmt}
+            setup={{
+              useCaseLabels: advisor.useCases,
+              dataSource,
+            }}
+            inputs={{
+              hasAutomation,
+              hasP2M,
+              hasStaffing,
+              annualVolume,
+              voiceVolume,
+              phonePct,
+              messagingPct,
+              emailPct,
+              humanCost,
+              aiCost,
+              softwareInvestment,
+              containment,
+              automationTypeLabel: AUTOMATION_TYPES[automationType].label,
+              containmentMode,
+              p2mPhoneVolume,
+              p2mDeflection,
+              p2mPhoneCost,
+              p2mMessagingCost,
+              p2mSoftware,
+              supportModelLabel: SUPPORT_MODEL_LABEL[supportModel],
+              hourlyCost,
+              aht,
+              useChannelAht,
+              voiceAht,
+              emailAht,
+              messagingAht,
+              occupancy,
+              shrinkage,
+            }}
+            automationCalc={automationCalc}
+            p2mCalc={p2mCalc}
+            workforce={workforce}
           />
         )}
       </div>
@@ -1503,15 +1841,15 @@ function Section({
           <button
             type="button"
             onClick={onToggle}
-            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-expanded={open}
+            aria-label={open ? "Collapse section" : "Expand section"}
           >
             {!open && summary && (
               <span className="hidden max-w-[16rem] truncate md:inline">
                 {summary}
               </span>
             )}
-            <span>{open ? "Collapse" : "Expand"}</span>
             <ChevronDown
               className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
             />
@@ -1838,27 +2176,71 @@ function BreakdownRow({
 
 function PresentationView({
   onClose,
+  onEdit,
   customerName,
   dealStage,
   currency,
   advisor,
   total,
   fmt,
+  setup,
+  inputs,
+  automationCalc,
+  p2mCalc,
+  workforce,
 }: {
   onClose: () => void;
+  onEdit: () => void;
   customerName: string;
   dealStage: string;
   currency: string;
   advisor: any;
   total: any;
   fmt: any;
+  setup: { useCaseLabels: string[]; dataSource: DataSource };
+  inputs: any;
+  automationCalc: any;
+  p2mCalc: any;
+  workforce: any;
 }) {
   const [copied, setCopied] = useState(false);
 
   const buildPlainText = () => {
     const lines: string[] = [];
     lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
-    lines.push(`${dealStage} · ${currency}`);
+    lines.push(`${dealStage} · ${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
+    lines.push("");
+    lines.push("OPPORTUNITY SETUP");
+    lines.push(`• Customer: ${customerName || "Untitled"}`);
+    lines.push(`• Deal stage: ${dealStage}`);
+    lines.push(`• Currency: ${currency}`);
+    lines.push(`• Use cases: ${setup.useCaseLabels.join(", ") || "—"}`);
+    lines.push(`• Data source: ${setup.dataSource === "actual" ? "Actual customer data" : setup.dataSource === "assumption" ? "Assumptions / benchmarks" : "—"}`);
+    lines.push("");
+    lines.push("DATA INPUTS");
+    if (inputs.hasAutomation) {
+      lines.push(`• Annual volume: ${fmtNumber(inputs.annualVolume)}`);
+      lines.push(`• Containment: ${inputs.containment}% (${inputs.containmentMode === "guided" ? inputs.automationTypeLabel : "manual"})`);
+      lines.push(`• Human cost / interaction: ${fmt.fmtCurrency2(inputs.humanCost)}`);
+      lines.push(`• AI cost / interaction: ${fmt.fmtCurrency2(inputs.aiCost)}`);
+      lines.push(`• Software investment: ${fmt.fmtCurrency(inputs.softwareInvestment)}`);
+    }
+    if (inputs.hasP2M) {
+      lines.push(`• Phone volume: ${fmtNumber(inputs.p2mPhoneVolume)}`);
+      lines.push(`• Deflection to messaging: ${inputs.p2mDeflection}%`);
+      lines.push(`• Phone cost: ${fmt.fmtCurrency2(inputs.p2mPhoneCost)} · Messaging cost: ${fmt.fmtCurrency2(inputs.p2mMessagingCost)}`);
+      lines.push(`• P2M software: ${fmt.fmtCurrency(inputs.p2mSoftware)}`);
+    }
+    if (inputs.hasStaffing) {
+      lines.push(`• Channel mix — phone ${inputs.phonePct}% / messaging ${inputs.messagingPct}% / email ${inputs.emailPct}%`);
+      if (inputs.useChannelAht) {
+        lines.push(`• Channel AHT — voice ${inputs.voiceAht}m, email ${inputs.emailAht}m, messaging ${inputs.messagingAht}m`);
+      } else {
+        lines.push(`• Blended AHT: ${inputs.aht} min`);
+      }
+      lines.push(`• Occupancy ${inputs.occupancy}% · Shrinkage ${inputs.shrinkage}%`);
+      lines.push(`• Hourly cost: ${fmt.fmtCurrency(inputs.hourlyCost)} (${inputs.supportModelLabel})`);
+    }
     lines.push("");
     lines.push("HEADLINE");
     lines.push(advisor.headline);
@@ -1868,6 +2250,7 @@ function PresentationView({
     lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
     lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
     lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+    lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
     if (advisor.whatWeFound.length) {
       lines.push("");
       lines.push("WHAT WE FOUND");
@@ -1877,6 +2260,14 @@ function PresentationView({
       lines.push("");
       lines.push("WHAT THIS MEANS");
       lines.push(advisor.whatThisMeans);
+    }
+    if (workforce) {
+      lines.push("");
+      lines.push("STAFFING SNAPSHOT");
+      lines.push(`• Required productive hours: ${fmtNumber(workforce.requiredHours)}`);
+      lines.push(`• Baseline agents: ${workforce.baselineRequiredAgents.toFixed(0)}`);
+      lines.push(`• Post-automation agents: ${workforce.postRequiredAgents.toFixed(0)}`);
+      lines.push(`• FTE capacity freed: ${workforce.fteFreed.toFixed(0)}`);
     }
     lines.push("");
     lines.push("ASSUMPTIONS");
@@ -1904,29 +2295,39 @@ function PresentationView({
     }
   };
 
+  const InputRow = ({ k, v }: { k: string; v: string }) => (
+    <div className="flex items-baseline justify-between gap-4 border-b border-border/60 py-2 text-sm last:border-b-0">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="text-right font-medium tabular-nums text-foreground">{v}</span>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
-      {/* Top bar */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
           <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             Presentation View
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Button>
             <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
               <Copy className="h-3.5 w-3.5" />
               {copied ? "Copied" : "Copy all"}
             </Button>
             <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
               <X className="h-4 w-4" />
-              Back to Calculator
+              Close
             </Button>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 lg:px-10">
-        {/* Slide 1 — Title */}
+        {/* Slide — Title */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
             Outcomes Summary
@@ -1935,14 +2336,103 @@ function PresentationView({
             {customerName || "Untitled Opportunity"}
           </h2>
           <div className="mt-4 text-sm text-muted-foreground">
-            {dealStage} · {currency} · {advisor.useCases.join(" + ") || "—"}
+            {dealStage} · {currency} · {setup.useCaseLabels.join(" + ") || "—"}
           </div>
         </Slide>
 
-        {/* Slide 2 — Headline + KPIs */}
+        {/* Slide — Opportunity Setup */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
-            Headline
+            01 · Opportunity setup
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-1 md:grid-cols-2">
+            <InputRow k="Customer" v={customerName || "—"} />
+            <InputRow k="Deal stage" v={dealStage} />
+            <InputRow k="Currency" v={currency} />
+            <InputRow k="Use cases" v={setup.useCaseLabels.join(", ") || "—"} />
+            <InputRow
+              k="Data source"
+              v={
+                setup.dataSource === "actual"
+                  ? "Actual customer data"
+                  : setup.dataSource === "assumption"
+                    ? "Assumptions / benchmarks"
+                    : "—"
+              }
+            />
+          </div>
+        </Slide>
+
+        {/* Slide — Data Inputs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            02 · Data inputs
+          </div>
+          <div className="mt-6 space-y-6">
+            {inputs.hasAutomation && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Automation
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow k="Annual volume" v={fmtNumber(inputs.annualVolume)} />
+                  <InputRow
+                    k="Containment"
+                    v={`${inputs.containment}%${inputs.containmentMode === "guided" ? ` · ${inputs.automationTypeLabel}` : ""}`}
+                  />
+                  <InputRow k="Human cost / interaction" v={fmt.fmtCurrency2(inputs.humanCost)} />
+                  <InputRow k="AI cost / interaction" v={fmt.fmtCurrency2(inputs.aiCost)} />
+                  <InputRow k="Software investment" v={fmt.fmtCurrency(inputs.softwareInvestment)} />
+                </div>
+              </div>
+            )}
+            {inputs.hasP2M && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Phone to Messaging
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow k="Phone volume" v={fmtNumber(inputs.p2mPhoneVolume)} />
+                  <InputRow k="Deflection to messaging" v={`${inputs.p2mDeflection}%`} />
+                  <InputRow k="Phone cost" v={fmt.fmtCurrency2(inputs.p2mPhoneCost)} />
+                  <InputRow k="Messaging cost" v={fmt.fmtCurrency2(inputs.p2mMessagingCost)} />
+                  <InputRow k="P2M software" v={fmt.fmtCurrency(inputs.p2mSoftware)} />
+                </div>
+              </div>
+            )}
+            {inputs.hasStaffing && (
+              <div>
+                <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                  Workforce
+                </div>
+                <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2">
+                  <InputRow
+                    k="Channel mix"
+                    v={`Phone ${inputs.phonePct}% · Msg ${inputs.messagingPct}% · Email ${inputs.emailPct}%`}
+                  />
+                  {inputs.useChannelAht ? (
+                    <InputRow
+                      k="Channel AHTs"
+                      v={`V ${inputs.voiceAht}m · E ${inputs.emailAht}m · M ${inputs.messagingAht}m`}
+                    />
+                  ) : (
+                    <InputRow k="Blended AHT" v={`${inputs.aht} min`} />
+                  )}
+                  <InputRow k="Occupancy / Shrinkage" v={`${inputs.occupancy}% / ${inputs.shrinkage}%`} />
+                  <InputRow
+                    k="Hourly cost"
+                    v={`${fmt.fmtCurrency(inputs.hourlyCost)} · ${inputs.supportModelLabel}`}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Slide>
+
+        {/* Slide — Headline + KPIs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            03 · Executive summary
           </div>
           <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
             {advisor.headline}
@@ -1955,7 +2445,7 @@ function PresentationView({
           </div>
         </Slide>
 
-        {/* Slide 3 — What we found */}
+        {/* Slide — What we found */}
         {advisor.whatWeFound.length > 0 && (
           <Slide>
             <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
@@ -1972,7 +2462,7 @@ function PresentationView({
           </Slide>
         )}
 
-        {/* Slide 4 — What this means */}
+        {/* Slide — What this means */}
         {advisor.whatThisMeans && (
           <Slide>
             <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
@@ -1984,7 +2474,50 @@ function PresentationView({
           </Slide>
         )}
 
-        {/* Slide 5 — Assumptions & Confidence */}
+        {/* Slide — Financial breakdown */}
+        {(automationCalc || p2mCalc) && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Financial breakdown
+            </div>
+            <div className="mt-6 space-y-1">
+              {automationCalc && (
+                <>
+                  <InputRow k="Automation — Baseline" v={fmt.fmtCurrency(automationCalc.baseline)} />
+                  <InputRow k="Automation — Final cost" v={fmt.fmtCurrency(automationCalc.finalCost)} />
+                  <InputRow k="Automation — Savings" v={fmt.fmtCurrency(automationCalc.savings)} />
+                </>
+              )}
+              {p2mCalc && (
+                <>
+                  <InputRow k="P2M — Baseline" v={fmt.fmtCurrency(p2mCalc.baseline)} />
+                  <InputRow k="P2M — Final cost" v={fmt.fmtCurrency(p2mCalc.finalCost)} />
+                  <InputRow k="P2M — Savings" v={fmt.fmtCurrency(p2mCalc.savings)} />
+                </>
+              )}
+              <InputRow k="Total annual savings" v={fmt.fmtCurrency(total.savings)} />
+              <InputRow k="Total software investment" v={fmt.fmtCurrency(total.software)} />
+              <InputRow k="Net benefit" v={fmt.fmtCurrency(total.netBenefit)} />
+            </div>
+          </Slide>
+        )}
+
+        {/* Slide — Staffing snapshot */}
+        {workforce && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Staffing snapshot
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <DeckKpi label="Productive Hours" value={fmtNumber(workforce.requiredHours)} />
+              <DeckKpi label="Baseline Agents" value={workforce.baselineRequiredAgents.toFixed(0)} />
+              <DeckKpi label="Post-Automation" value={workforce.postRequiredAgents.toFixed(0)} />
+              <DeckKpi label="FTE Freed" value={workforce.fteFreed.toFixed(0)} />
+            </div>
+          </Slide>
+        )}
+
+        {/* Slide — Assumptions & Confidence */}
         <Slide>
           <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
             Assumptions & confidence
@@ -2033,8 +2566,8 @@ function PresentationView({
         </Slide>
 
         <div className="pb-8 text-center text-xs text-muted-foreground">
-          Tip: edit any input back in the calculator and these slides update
-          live. Use “Copy all” to paste a plain-text summary into your deck.
+          Tip: click “Edit” to update inputs — slides recalc live. Use “Copy all”
+          to paste a plain-text summary into your deck.
         </div>
       </div>
     </div>
