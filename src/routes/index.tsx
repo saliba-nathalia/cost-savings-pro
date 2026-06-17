@@ -428,22 +428,50 @@ function Index() {
       customerInputs.push(`containment ${containment}%`);
     }
     assumedInputs.push(`occupancy ${occupancy}%, shrinkage ${shrinkage}%`);
+    if (useChannelAht) {
+      customerInputs.push(
+        `channel AHTs (voice ${voiceAht}m, email ${emailAht}m, messaging ${messagingAht}m)`,
+      );
+    } else {
+      assumedInputs.push(
+        `blended AHT ${aht} min applied across all channels`,
+      );
+    }
 
     lines.push(
       `Customer-provided inputs: ${customerInputs.join("; ") || "none"}. Assumed inputs: ${assumedInputs.join("; ")}.`,
     );
 
-    // Confidence
-    const confidenceFactors = [
-      dataSource === "actual",
-      containmentMode === "manual",
-      channelValid,
-    ].filter(Boolean).length;
-    const confidence =
-      confidenceFactors >= 3 ? "High" : confidenceFactors === 2 ? "Medium" : "Low";
+    // Workforce narrative
     lines.push(
-      `Confidence: ${confidence}. Based on data source (${dataSource === "actual" ? "customer data" : "assumptions"}), containment method (${containmentMode}), and channel mix validity (${channelValid ? "valid" : "invalid — totals " + channelTotal + "%"}).`,
+      useChannelAht
+        ? `Staffing and capacity estimates were calculated using channel-specific workloads across voice, email, and messaging interactions, providing a more accurate representation of operational demand. Baseline required agents: ${workforce.baselineRequiredAgents.toFixed(0)}; post-automation required: ${workforce.postRequiredAgents.toFixed(0)}; FTE capacity freed: ${workforce.fteFreed.toFixed(0)} (${fmtNumber(workforce.hoursFreed)} productive hours).`
+        : `Staffing and capacity estimates were calculated using a blended average handle time. Accuracy can be improved by providing channel-specific handling times. Baseline required agents: ${workforce.baselineRequiredAgents.toFixed(0)}; post-automation required: ${workforce.postRequiredAgents.toFixed(0)}; FTE capacity freed: ${workforce.fteFreed.toFixed(0)}.`,
     );
+    if (!useChannelAht) {
+      lines.push(
+        "Workforce calculations use a blended AHT because channel-specific handling times were not provided.",
+      );
+    }
+
+    // Confidence — weighted by quality of inputs
+    let score = 0;
+    if (dataSource === "actual") score += 2;
+    if (containmentMode === "manual") score += 2;
+    if (channelValid) score += 1;
+    if (useChannelAht) score += 2;
+    if (numberOfAgents > 0) score += 1;
+    // occupancy/shrinkage are always set (defaults), small credit if customized
+    if (occupancy !== 80 || shrinkage !== 20) score += 1;
+    // Penalties
+    if (containmentMode === "guided") score -= 1;
+    if (dataSource === "assumption") score -= 1;
+
+    const confidence = score >= 7 ? "High" : score >= 4 ? "Medium" : "Low";
+    lines.push(
+      `${confidence} Confidence. Based on data source (${dataSource === "actual" ? "customer data" : "assumptions"}), containment method (${containmentMode}), channel-mix validity (${channelValid ? "valid" : "invalid — totals " + channelTotal + "%"}), and AHT granularity (${useChannelAht ? "channel-specific" : "blended"}).`,
+    );
+
 
     return lines;
   }, [
