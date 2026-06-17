@@ -1739,12 +1739,60 @@ function Index() {
         {presentationOpen && showStep3 && (
           <PresentationView
             onClose={() => setPresentationOpen(false)}
+            onEdit={() => {
+              setPresentationOpen(false);
+              setStep2Open(true);
+              setTimeout(
+                () =>
+                  document
+                    .getElementById("step-02")
+                    ?.scrollIntoView({ behavior: "smooth" }),
+                80,
+              );
+            }}
             customerName={customerName}
             dealStage={dealStage}
             currency={currency}
             advisor={advisor}
             total={total}
             fmt={fmt}
+            setup={{
+              useCaseLabels: advisor.useCases,
+              dataSource,
+            }}
+            inputs={{
+              hasAutomation,
+              hasP2M,
+              hasStaffing,
+              annualVolume,
+              voiceVolume,
+              phonePct,
+              messagingPct,
+              emailPct,
+              humanCost,
+              aiCost,
+              softwareInvestment,
+              containment,
+              automationTypeLabel: AUTOMATION_TYPES[automationType].label,
+              containmentMode,
+              p2mPhoneVolume,
+              p2mDeflection,
+              p2mPhoneCost,
+              p2mMessagingCost,
+              p2mSoftware,
+              supportModelLabel: SUPPORT_MODEL_LABEL[supportModel],
+              hourlyCost,
+              aht,
+              useChannelAht,
+              voiceAht,
+              emailAht,
+              messagingAht,
+              occupancy,
+              shrinkage,
+            }}
+            automationCalc={automationCalc}
+            p2mCalc={p2mCalc}
+            workforce={workforce}
           />
         )}
       </div>
