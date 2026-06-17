@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Info, ChevronDown, Check, Pencil } from "lucide-react";
+import { Info, ChevronDown, Check, Pencil, X, Copy } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
