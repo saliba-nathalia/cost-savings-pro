@@ -1456,24 +1456,66 @@ function Section({
   title,
   eyebrow,
   children,
+  collapsible,
+  open = true,
+  onToggle,
+  summary,
+  complete,
 }: {
   title: string;
   eyebrow: string;
   children: React.ReactNode;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  summary?: string;
+  complete?: boolean;
 }) {
   return (
-    <section>
-      <div className="mb-5 flex items-baseline gap-3">
-        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
-          {eyebrow}
-        </span>
-        <h2 className="font-serif text-2xl tracking-tight text-foreground">
-          {title}
-        </h2>
+    <section id={`step-${eyebrow}`}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+            {eyebrow}
+          </span>
+          <h2 className="font-serif text-2xl tracking-tight text-foreground">
+            {title}
+          </h2>
+          {complete && (
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+              <Check className="h-3 w-3" />
+            </span>
+          )}
+        </div>
+        {collapsible && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-expanded={open}
+          >
+            {!open && summary && (
+              <span className="hidden max-w-[16rem] truncate md:inline">
+                {summary}
+              </span>
+            )}
+            <span>{open ? "Collapse" : "Expand"}</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
       </div>
-      <div className="space-y-5 rounded-xl border border-border bg-card p-6 lg:p-8">
-        {children}
-      </div>
+      {open && (
+        <div className="space-y-5 rounded-xl border border-border bg-card p-6 lg:p-8">
+          {children}
+        </div>
+      )}
+      {!open && summary && (
+        <div className="truncate rounded-xl border border-dashed border-border bg-card/40 px-5 py-3 text-xs text-muted-foreground md:hidden">
+          {summary}
+        </div>
+      )}
     </section>
   );
 }
