@@ -500,6 +500,12 @@ function Index() {
     shrinkage,
     channelValid,
     channelTotal,
+    useChannelAht,
+    voiceAht,
+    emailAht,
+    messagingAht,
+    workforce,
+    numberOfAgents,
     fmt,
   ]);
 
