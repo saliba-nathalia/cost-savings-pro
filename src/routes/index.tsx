@@ -842,11 +842,21 @@ function Index() {
                 </div>
               </div>
             </div>
-            {showStep3 && (
-              <Button variant="outline" onClick={exportPdf} className="rounded-full">
-                Download Executive Summary
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={handleSave} className="rounded-full gap-1.5">
+                <Save className="h-3.5 w-3.5" />
+                {saveMsg || "Save"}
               </Button>
-            )}
+              <Button variant="outline" size="sm" onClick={handleShare} className="rounded-full gap-1.5">
+                <Share2 className="h-3.5 w-3.5" />
+                {shareMsg || "Share"}
+              </Button>
+              {showStep3 && (
+                <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
+                  Download PDF
+                </Button>
+              )}
+            </div>
           </div>
         </header>
 
