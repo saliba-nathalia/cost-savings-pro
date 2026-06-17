@@ -794,8 +794,22 @@ function Index() {
           </Section>
 
           {/* Step 02 */}
-          {showStep2 ? (
-            <Section title="Data Inputs" eyebrow="02">
+          {step01Complete && (
+            <Section
+              title="Data Inputs"
+              eyebrow="02"
+              collapsible={step02Ready}
+              open={step2Open}
+              onToggle={() => setStep2Open((o) => !o)}
+              summary={
+                step02Ready
+                  ? dataSource === "actual"
+                    ? "Using customer data"
+                    : "Using assumptions"
+                  : undefined
+              }
+              complete={step02Ready}
+            >
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                   Do you have actual customer data?
