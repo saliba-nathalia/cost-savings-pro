@@ -1585,6 +1585,7 @@ function Index() {
               <div className="flex flex-wrap justify-end gap-3 pt-2">
                 <Button
                   variant="outline"
+                  className="gap-1.5"
                   onClick={() => {
                     setStep2Open(true);
                     setTimeout(
@@ -1596,14 +1597,134 @@ function Index() {
                     );
                   }}
                 >
-                  Edit Inputs
+                  <Pencil className="h-3.5 w-3.5" />
+                  Edit
                 </Button>
                 <Button variant="outline" onClick={() => setPresentationOpen(true)}>
                   Presentation View
                 </Button>
-                <Button onClick={exportPdf}>Download Executive Summary</Button>
+                <Button onClick={exportPdf}>Download PDF</Button>
               </div>
             </Section>
+          )}
+
+          {/* Comments */}
+          {showStep3 && (
+            <section id="comments">
+              <div className="mb-5 flex items-baseline gap-3">
+                <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+                  04
+                </span>
+                <h2 className="font-serif text-2xl tracking-tight text-foreground">
+                  Comments
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  · {comments.length} {comments.length === 1 ? "note" : "notes"}
+                </span>
+              </div>
+              <div className="space-y-4 rounded-xl border border-border bg-card p-6 lg:p-8">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-[200px,1fr]">
+                  <Input
+                    value={commentAuthor}
+                    onChange={(e) => setCommentAuthor(e.target.value)}
+                    placeholder="Your name"
+                  />
+                  <Textarea
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Share context, questions, or assumptions to discuss with your team…"
+                    rows={2}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={addComment} disabled={!commentText.trim()} className="gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    Post comment
+                  </Button>
+                </div>
+                {comments.length > 0 && (
+                  <>
+                    <Separator />
+                    <ul className="space-y-4">
+                      {comments
+                        .slice()
+                        .sort((a, b) => b.ts - a.ts)
+                        .map((c) => (
+                          <li key={c.id} className="flex gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-foreground">
+                              {(c.author || "?").slice(0, 1).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-medium text-foreground">
+                                  {c.author}
+                                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                    {new Date(c.ts).toLocaleString()}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => removeComment(c.id)}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  aria-label="Delete comment"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                                {c.text}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                )}
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  Comments are scoped to this customer name and stored in your
+                  browser. Share the link (top right) to invite teammates to add
+                  their own notes.
+                </p>
+              </div>
+            </section>
+          )}
+
+          {/* Saved scenarios */}
+          {savedList.length > 0 && (
+            <section>
+              <div className="mb-5 flex items-baseline gap-3">
+                <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+                  ★
+                </span>
+                <h2 className="font-serif text-2xl tracking-tight text-foreground">
+                  Saved scenarios
+                </h2>
+              </div>
+              <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+                {savedList.map((s) => (
+                  <li key={s.name} className="flex items-center justify-between gap-3 px-5 py-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">{s.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(s.ts).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button size="sm" variant="outline" onClick={() => handleLoad(s.name)}>
+                        Load
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteSave(s.name)}
+                        aria-label="Delete saved scenario"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </main>
 
