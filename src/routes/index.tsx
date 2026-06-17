@@ -74,6 +74,14 @@ const AUTOMATION_TYPES: Record<
   api_5_8: { label: "Integrations / APIs (5–8 APIs)", range: [70, 75], mid: 72 },
 };
 
+// Industry benchmark AHTs in minutes (used when channel-specific values not supplied)
+const BENCHMARK_AHT = { voice: 8, email: 12, messaging: 6 };
+const BENCHMARK_RANGE = {
+  voice: "6–10 min",
+  email: "10–15 min",
+  messaging: "5–7 min",
+};
+
 const CURRENCIES: Record<
   CurrencyCode,
   { symbol: string; locale: string; label: string }
