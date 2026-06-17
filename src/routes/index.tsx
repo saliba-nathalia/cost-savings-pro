@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Info, ChevronDown, Check, Pencil } from "lucide-react";
+import { Info, ChevronDown, Check, Pencil, X, Copy } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -225,20 +225,20 @@ function Index() {
   const step01Complete =
     customerName.trim().length > 0 && useCases.size > 0;
   const step02Ready = step01Complete && dataSource !== null;
-  const [editingStep, setEditingStep] = useState<1 | 2 | null>(1);
+  const [step1Open, setStep1Open] = useState(true);
+  const [step2Open, setStep2Open] = useState(false);
+  const [presentationOpen, setPresentationOpen] = useState(false);
 
-  // Auto-advance: if step1 just got complete and we're editing it, jump to step 2
-  const showStep1 = editingStep === 1 || !step01Complete;
-  const showStep2 =
-    step01Complete && (editingStep === 2 || (!showStep1 && dataSource === null));
-  const showStep3 = step02Ready && editingStep === null;
+  const showStep3 = step02Ready;
 
-  // When the user finishes step 1, advance
   const handleContinueFromStep1 = () => {
-    if (step01Complete) setEditingStep(2);
+    if (step01Complete) {
+      setStep1Open(false);
+      setStep2Open(true);
+    }
   };
   const handleContinueFromStep2 = () => {
-    if (step02Ready) setEditingStep(null);
+    if (step02Ready) setStep2Open(false);
   };
 
   /* ---------- Calculations ---------- */
@@ -701,98 +701,115 @@ function Index() {
         {/* Single-column wizard */}
         <main className="mx-auto max-w-4xl space-y-8 px-6 pb-24 lg:px-10">
           {/* Step 01 */}
-          {showStep1 ? (
-            <Section title="Opportunity Setup" eyebrow="01">
-              <Field label="Customer Name">
-                <Input
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="Acme Corporation"
-                />
-              </Field>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Field
-                  label="Deal Stage"
-                  tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
-                >
-                  <Select value={dealStage} onValueChange={setDealStage}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
-                        (s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Currency">
-                  <Select
-                    value={currency}
-                    onValueChange={(v) => setCurrency(v as CurrencyCode)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {CURRENCIES[c].label}
+          <Section
+            title="Opportunity Setup"
+            eyebrow="01"
+            collapsible={step01Complete}
+            open={step1Open}
+            onToggle={() => setStep1Open((o) => !o)}
+            summary={
+              step01Complete
+                ? `${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`
+                : undefined
+            }
+            complete={step01Complete}
+          >
+            <Field label="Customer Name">
+              <Input
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Acme Corporation"
+              />
+            </Field>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <Field
+                label="Deal Stage"
+                tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
+              >
+                <Select value={dealStage} onValueChange={setDealStage}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
+                      (s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-
-              <Field label="Use Cases (select one or more)">
-                <div className="grid grid-cols-1 gap-3">
-                  <UseCaseCard
-                    active={hasAutomation}
-                    title="Cost Savings / Automation"
-                    desc="AI deflects interactions from human agents."
-                    onClick={() => toggleUseCase("automation")}
-                  />
-                  <UseCaseCard
-                    active={hasP2M}
-                    title="Cost Savings / Phone to Messaging"
-                    desc="Shift volume from voice to lower-cost messaging."
-                    onClick={() => toggleUseCase("phone_to_messaging")}
-                  />
-                  <UseCaseCard
-                    active={hasStaffing}
-                    title="Workforce Sizing & Staffing Analysis"
-                    desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
-                    onClick={() => toggleUseCase("staffing")}
-                  />
-                </div>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
               </Field>
-
-              <div className="flex justify-end pt-2">
-                <Button
-                  onClick={handleContinueFromStep1}
-                  disabled={!step01Complete}
+              <Field label="Currency">
+                <Select
+                  value={currency}
+                  onValueChange={(v) => setCurrency(v as CurrencyCode)}
                 >
-                  Continue
-                </Button>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(CURRENCIES) as CurrencyCode[]).map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {CURRENCIES[c].label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+
+            <Field label="Use Cases (select one or more)">
+              <div className="grid grid-cols-1 gap-3">
+                <UseCaseCard
+                  active={hasAutomation}
+                  title="Cost Savings / Automation"
+                  desc="AI deflects interactions from human agents."
+                  onClick={() => toggleUseCase("automation")}
+                />
+                <UseCaseCard
+                  active={hasP2M}
+                  title="Cost Savings / Phone to Messaging"
+                  desc="Shift volume from voice to lower-cost messaging."
+                  onClick={() => toggleUseCase("phone_to_messaging")}
+                />
+                <UseCaseCard
+                  active={hasStaffing}
+                  title="Workforce Sizing & Staffing Analysis"
+                  desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
+                  onClick={() => toggleUseCase("staffing")}
+                />
               </div>
-            </Section>
-          ) : (
-            <SummaryChip
-              eyebrow="01"
-              title="Opportunity Setup"
-              summary={`${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`}
-              onEdit={() => setEditingStep(1)}
-            />
-          )}
+            </Field>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleContinueFromStep1}
+                disabled={!step01Complete}
+              >
+                Continue
+              </Button>
+            </div>
+          </Section>
 
           {/* Step 02 */}
-          {showStep2 ? (
-            <Section title="Data Inputs" eyebrow="02">
+          {step01Complete && (
+            <Section
+              title="Data Inputs"
+              eyebrow="02"
+              collapsible={step02Ready}
+              open={step2Open}
+              onToggle={() => setStep2Open((o) => !o)}
+              summary={
+                step02Ready
+                  ? dataSource === "actual"
+                    ? "Using customer data"
+                    : "Using assumptions"
+                  : undefined
+              }
+              complete={step02Ready}
+            >
               <div>
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                   Do you have actual customer data?
@@ -1220,21 +1237,7 @@ function Index() {
                 </div>
               )}
             </Section>
-          ) : step01Complete && !showStep1 ? (
-            <SummaryChip
-              eyebrow="02"
-              title="Data Inputs"
-              summary={
-                dataSource === null
-                  ? "Not started"
-                  : dataSource === "actual"
-                    ? "Using customer data"
-                    : "Using assumptions"
-              }
-              onEdit={() => setEditingStep(2)}
-              dim={!step02Ready}
-            />
-          ) : null}
+          )}
 
           {/* Step 03 — Results */}
           {showStep3 && (
@@ -1411,8 +1414,23 @@ function Index() {
               )}
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => setEditingStep(2)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setStep2Open(true);
+                    setTimeout(
+                      () =>
+                        document
+                          .getElementById("step-02")
+                          ?.scrollIntoView({ behavior: "smooth" }),
+                      50,
+                    );
+                  }}
+                >
                   Edit Inputs
+                </Button>
+                <Button variant="outline" onClick={() => setPresentationOpen(true)}>
+                  Presentation View
                 </Button>
                 <Button onClick={exportPdf}>Download Executive Summary</Button>
               </div>
@@ -1427,6 +1445,18 @@ function Index() {
             contracting.
           </div>
         </footer>
+
+        {presentationOpen && showStep3 && (
+          <PresentationView
+            onClose={() => setPresentationOpen(false)}
+            customerName={customerName}
+            dealStage={dealStage}
+            currency={currency}
+            advisor={advisor}
+            total={total}
+            fmt={fmt}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
@@ -1438,24 +1468,66 @@ function Section({
   title,
   eyebrow,
   children,
+  collapsible,
+  open = true,
+  onToggle,
+  summary,
+  complete,
 }: {
   title: string;
   eyebrow: string;
   children: React.ReactNode;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  summary?: string;
+  complete?: boolean;
 }) {
   return (
-    <section>
-      <div className="mb-5 flex items-baseline gap-3">
-        <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
-          {eyebrow}
-        </span>
-        <h2 className="font-serif text-2xl tracking-tight text-foreground">
-          {title}
-        </h2>
+    <section id={`step-${eyebrow}`}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-baseline gap-3">
+          <span className="text-xs font-medium tracking-[0.18em] text-muted-foreground">
+            {eyebrow}
+          </span>
+          <h2 className="font-serif text-2xl tracking-tight text-foreground">
+            {title}
+          </h2>
+          {complete && (
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+              <Check className="h-3 w-3" />
+            </span>
+          )}
+        </div>
+        {collapsible && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            aria-expanded={open}
+          >
+            {!open && summary && (
+              <span className="hidden max-w-[16rem] truncate md:inline">
+                {summary}
+              </span>
+            )}
+            <span>{open ? "Collapse" : "Expand"}</span>
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
+            />
+          </button>
+        )}
       </div>
-      <div className="space-y-5 rounded-xl border border-border bg-card p-6 lg:p-8">
-        {children}
-      </div>
+      {open && (
+        <div className="space-y-5 rounded-xl border border-border bg-card p-6 lg:p-8">
+          {children}
+        </div>
+      )}
+      {!open && summary && (
+        <div className="truncate rounded-xl border border-dashed border-border bg-card/40 px-5 py-3 text-xs text-muted-foreground md:hidden">
+          {summary}
+        </div>
+      )}
     </section>
   );
 }
@@ -1757,6 +1829,234 @@ function BreakdownRow({
         }`}
       >
         {v}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Presentation View (deck-friendly, copy-paste) ---------- */
+
+function PresentationView({
+  onClose,
+  customerName,
+  dealStage,
+  currency,
+  advisor,
+  total,
+  fmt,
+}: {
+  onClose: () => void;
+  customerName: string;
+  dealStage: string;
+  currency: string;
+  advisor: any;
+  total: any;
+  fmt: any;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const buildPlainText = () => {
+    const lines: string[] = [];
+    lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
+    lines.push(`${dealStage} · ${currency}`);
+    lines.push("");
+    lines.push("HEADLINE");
+    lines.push(advisor.headline);
+    lines.push("");
+    lines.push("KEY OUTCOMES");
+    lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
+    lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
+    lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
+    lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+    if (advisor.whatWeFound.length) {
+      lines.push("");
+      lines.push("WHAT WE FOUND");
+      advisor.whatWeFound.forEach((s: string) => lines.push(`• ${s}`));
+    }
+    if (advisor.whatThisMeans) {
+      lines.push("");
+      lines.push("WHAT THIS MEANS");
+      lines.push(advisor.whatThisMeans);
+    }
+    lines.push("");
+    lines.push("ASSUMPTIONS");
+    if (advisor.customerInputs.length) {
+      lines.push("From your data:");
+      advisor.customerInputs.forEach((s: string) => lines.push(`  • ${s}`));
+    }
+    if (advisor.assumedInputs.length) {
+      lines.push("Assumed defaults:");
+      advisor.assumedInputs.forEach((s: string) => lines.push(`  • ${s}`));
+    }
+    lines.push("");
+    lines.push(`Confidence: ${advisor.confidence.level}`);
+    lines.push(advisor.confidence.explanation);
+    return lines.join("\n");
+  };
+
+  const copyAll = async () => {
+    try {
+      await navigator.clipboard.writeText(buildPlainText());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* noop */
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-background">
+      {/* Top bar */}
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4 lg:px-10">
+          <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+            Presentation View
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={copyAll} className="gap-1.5">
+              <Copy className="h-3.5 w-3.5" />
+              {copied ? "Copied" : "Copy all"}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClose} className="gap-1.5">
+              <X className="h-4 w-4" />
+              Back to Calculator
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10 lg:px-10">
+        {/* Slide 1 — Title */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Outcomes Summary
+          </div>
+          <h2 className="mt-4 font-serif text-4xl tracking-tight text-foreground md:text-5xl">
+            {customerName || "Untitled Opportunity"}
+          </h2>
+          <div className="mt-4 text-sm text-muted-foreground">
+            {dealStage} · {currency} · {advisor.useCases.join(" + ") || "—"}
+          </div>
+        </Slide>
+
+        {/* Slide 2 — Headline + KPIs */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Headline
+          </div>
+          <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
+            {advisor.headline}
+          </p>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
+            <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+            <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
+            <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
+          </div>
+        </Slide>
+
+        {/* Slide 3 — What we found */}
+        {advisor.whatWeFound.length > 0 && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              What we found
+            </div>
+            <ul className="mt-6 space-y-4">
+              {advisor.whatWeFound.map((s: string, i: number) => (
+                <li key={i} className="flex gap-3 text-lg leading-relaxed text-foreground">
+                  <span className="mt-3 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
+                  <span>{s}</span>
+                </li>
+              ))}
+            </ul>
+          </Slide>
+        )}
+
+        {/* Slide 4 — What this means */}
+        {advisor.whatThisMeans && (
+          <Slide>
+            <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              What this means
+            </div>
+            <p className="mt-6 text-lg leading-relaxed text-foreground">
+              {advisor.whatThisMeans}
+            </p>
+          </Slide>
+        )}
+
+        {/* Slide 5 — Assumptions & Confidence */}
+        <Slide>
+          <div className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+            Assumptions & confidence
+          </div>
+          <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div>
+              <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                From your data
+              </div>
+              {advisor.customerInputs.length > 0 ? (
+                <ul className="space-y-2 text-sm text-foreground">
+                  {advisor.customerInputs.map((s: string, i: number) => (
+                    <li key={i}>· {s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No customer-provided inputs.
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                Assumed defaults
+              </div>
+              {advisor.assumedInputs.length > 0 ? (
+                <ul className="space-y-2 text-sm text-foreground">
+                  {advisor.assumedInputs.map((s: string, i: number) => (
+                    <li key={i}>· {s}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  None — all inputs are customer-provided.
+                </div>
+              )}
+            </div>
+          </div>
+          <Separator className="my-8" />
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            Confidence: {advisor.confidence.level}
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-foreground">
+            {advisor.confidence.explanation}
+          </p>
+        </Slide>
+
+        <div className="pb-8 text-center text-xs text-muted-foreground">
+          Tip: edit any input back in the calculator and these slides update
+          live. Use “Copy all” to paste a plain-text summary into your deck.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Slide({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-10 shadow-sm lg:p-14">
+      {children}
+    </div>
+  );
+}
+
+function DeckKpi({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-2 font-serif text-3xl leading-none tracking-tight text-foreground tabular-nums md:text-4xl">
+        {value}
       </div>
     </div>
   );
