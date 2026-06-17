@@ -852,6 +852,75 @@ function Index() {
                 </div>
               )}
 
+              {/* Workforce Modeling — channel-specific AHTs */}
+              <SubHeader title="Workforce Modeling" />
+              <div className="flex flex-wrap gap-3">
+                <RadioPill
+                  active={!useChannelAht}
+                  label="Use blended AHT"
+                  onClick={() => setUseChannelAht(false)}
+                />
+                <RadioPill
+                  active={useChannelAht}
+                  label="Use channel-specific AHTs"
+                  onClick={() => setUseChannelAht(true)}
+                />
+              </div>
+              {useChannelAht ? (
+                <>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <Field
+                      label="Voice AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.voice}. Override with customer data when available.`}
+                    >
+                      <NumberInput value={voiceAht} onChange={setVoiceAht} step={0.1} />
+                    </Field>
+                    <Field
+                      label="Email AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.email}.`}
+                    >
+                      <NumberInput value={emailAht} onChange={setEmailAht} step={0.1} />
+                    </Field>
+                    <Field
+                      label="Messaging AHT (min)"
+                      tooltip={`Industry benchmark: ${BENCHMARK_RANGE.messaging}.`}
+                    >
+                      <NumberInput
+                        value={messagingAht}
+                        onChange={setMessagingAht}
+                        step={0.1}
+                      />
+                    </Field>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Defaults are industry benchmarks (voice {BENCHMARK_RANGE.voice},
+                    email {BENCHMARK_RANGE.email}, messaging {BENCHMARK_RANGE.messaging}).
+                    Override with customer-specific values for highest accuracy.
+                  </div>
+                </>
+              ) : (
+                <div className="text-xs text-muted-foreground">
+                  Workforce calculations will use a single blended AHT. Switch to
+                  channel-specific AHTs for higher fidelity staffing estimates.
+                </div>
+              )}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <MiniStat
+                  label="Required Productive Hours"
+                  value={fmtNumber(workforce.requiredHours)}
+                />
+                <MiniStat
+                  label="Baseline Required Agents"
+                  value={workforce.baselineRequiredAgents.toFixed(0)}
+                />
+                <MiniStat
+                  label="FTE Capacity Freed"
+                  value={workforce.fteFreed.toFixed(0)}
+                />
+              </div>
+
+
+
               {/* Automation use case inputs */}
               {hasAutomation && (
                 <>
