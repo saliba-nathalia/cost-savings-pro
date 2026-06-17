@@ -666,6 +666,164 @@ function Index() {
     );
   };
 
+  /* ---------- Snapshot / Save / Share / Comments ---------- */
+  const snapshot = () => ({
+    customerName, dealStage, currency, useCases: Array.from(useCases),
+    dataSource, numberOfAgents, annualVolume, voiceVolume,
+    phonePct, messagingPct, emailPct,
+    costMode, costPerInteraction, supportModel, hourlyCost, aht,
+    useChannelAht, voiceAht, emailAht, messagingAht,
+    aiCost, softwareInvestment, containmentMode, resolutionRate, automationType,
+    p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
+    occupancy, shrinkage,
+  });
+  const applySnapshot = (s: any) => {
+    if (!s || typeof s !== "object") return;
+    const set = <T,>(v: T | undefined, fn: (x: T) => void) => {
+      if (v !== undefined && v !== null) fn(v);
+    };
+    set(s.customerName, setCustomerName);
+    set(s.dealStage, setDealStage);
+    set(s.currency, setCurrency);
+    if (Array.isArray(s.useCases)) setUseCases(new Set(s.useCases));
+    set(s.dataSource, setDataSource);
+    set(s.numberOfAgents, setNumberOfAgents);
+    set(s.annualVolume, setAnnualVolume);
+    set(s.voiceVolume, setVoiceVolume);
+    set(s.phonePct, setPhonePct);
+    set(s.messagingPct, setMessagingPct);
+    set(s.emailPct, setEmailPct);
+    set(s.costMode, setCostMode);
+    set(s.costPerInteraction, setCostPerInteraction);
+    set(s.supportModel, setSupportModel);
+    set(s.hourlyCost, setHourlyCost);
+    set(s.aht, setAht);
+    set(s.useChannelAht, setUseChannelAht);
+    set(s.voiceAht, setVoiceAht);
+    set(s.emailAht, setEmailAht);
+    set(s.messagingAht, setMessagingAht);
+    set(s.aiCost, setAiCost);
+    set(s.softwareInvestment, setSoftwareInvestment);
+    set(s.containmentMode, setContainmentMode);
+    set(s.resolutionRate, setResolutionRate);
+    set(s.automationType, setAutomationType);
+    set(s.p2mPhoneVolume, setP2mPhoneVolume);
+    set(s.p2mDeflection, setP2mDeflection);
+    set(s.p2mPhoneCost, setP2mPhoneCost);
+    set(s.p2mMessagingCost, setP2mMessagingCost);
+    set(s.p2mSoftware, setP2mSoftware);
+    set(s.occupancy, setOccupancy);
+    set(s.shrinkage, setShrinkage);
+    if (s.customerName && s.useCases?.length) {
+      setStep1Open(false);
+      setStep2Open(false);
+    }
+  };
+
+  // Hydrate from URL hash on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash;
+    const m = hash.match(/[#&]s=([^&]+)/);
+    if (!m) return;
+    try {
+      const json = decodeURIComponent(escape(atob(decodeURIComponent(m[1]))));
+      applySnapshot(JSON.parse(json));
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [savedList, setSavedList] = useState<{ name: string; ts: number }[]>([]);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [shareMsg, setShareMsg] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("outcomes-saves-index");
+      if (raw) setSavedList(JSON.parse(raw));
+    } catch { /* ignore */ }
+  }, []);
+  const handleSave = () => {
+    try {
+      const name = customerName.trim() || "Untitled";
+      const ts = Date.now();
+      const key = `outcomes-save-${name}`;
+      localStorage.setItem(key, JSON.stringify(snapshot()));
+      const next = [
+        { name, ts },
+        ...savedList.filter((s) => s.name !== name),
+      ].slice(0, 20);
+      localStorage.setItem("outcomes-saves-index", JSON.stringify(next));
+      setSavedList(next);
+      setSaveMsg(`Saved “${name}”`);
+      setTimeout(() => setSaveMsg(""), 2200);
+    } catch {
+      setSaveMsg("Could not save");
+      setTimeout(() => setSaveMsg(""), 2200);
+    }
+  };
+  const handleLoad = (name: string) => {
+    try {
+      const raw = localStorage.getItem(`outcomes-save-${name}`);
+      if (raw) applySnapshot(JSON.parse(raw));
+    } catch { /* ignore */ }
+  };
+  const handleDeleteSave = (name: string) => {
+    localStorage.removeItem(`outcomes-save-${name}`);
+    const next = savedList.filter((s) => s.name !== name);
+    localStorage.setItem("outcomes-saves-index", JSON.stringify(next));
+    setSavedList(next);
+  };
+  const handleShare = async () => {
+    try {
+      const json = JSON.stringify(snapshot());
+      const b64 = btoa(unescape(encodeURIComponent(json)));
+      const url = `${window.location.origin}${window.location.pathname}#s=${encodeURIComponent(b64)}`;
+      await navigator.clipboard.writeText(url);
+      setShareMsg("Share link copied");
+    } catch {
+      setShareMsg("Could not copy link");
+    }
+    setTimeout(() => setShareMsg(""), 2200);
+  };
+
+  // Comments — scoped to customer name, persisted in localStorage
+  type Comment = { id: string; author: string; text: string; ts: number };
+  const commentsKey = `outcomes-comments-${customerName.trim() || "_default"}`;
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentAuthor, setCommentAuthor] = useState("");
+  const [commentText, setCommentText] = useState("");
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(commentsKey);
+      setComments(raw ? JSON.parse(raw) : []);
+    } catch {
+      setComments([]);
+    }
+  }, [commentsKey]);
+  const addComment = () => {
+    const text = commentText.trim();
+    if (!text) return;
+    const next: Comment[] = [
+      ...comments,
+      {
+        id: Math.random().toString(36).slice(2),
+        author: commentAuthor.trim() || "Anonymous",
+        text,
+        ts: Date.now(),
+      },
+    ];
+    setComments(next);
+    localStorage.setItem(commentsKey, JSON.stringify(next));
+    setCommentText("");
+  };
+  const removeComment = (id: string) => {
+    const next = comments.filter((c) => c.id !== id);
+    setComments(next);
+    localStorage.setItem(commentsKey, JSON.stringify(next));
+  };
+
   /* ---------- Render ---------- */
   return (
     <TooltipProvider delayDuration={150}>
