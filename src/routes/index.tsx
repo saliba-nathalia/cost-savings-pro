@@ -225,20 +225,20 @@ function Index() {
   const step01Complete =
     customerName.trim().length > 0 && useCases.size > 0;
   const step02Ready = step01Complete && dataSource !== null;
-  const [editingStep, setEditingStep] = useState<1 | 2 | null>(1);
+  const [step1Open, setStep1Open] = useState(true);
+  const [step2Open, setStep2Open] = useState(false);
+  const [presentationOpen, setPresentationOpen] = useState(false);
 
-  // Auto-advance: if step1 just got complete and we're editing it, jump to step 2
-  const showStep1 = editingStep === 1 || !step01Complete;
-  const showStep2 =
-    step01Complete && (editingStep === 2 || (!showStep1 && dataSource === null));
-  const showStep3 = step02Ready && editingStep === null;
+  const showStep3 = step02Ready;
 
-  // When the user finishes step 1, advance
   const handleContinueFromStep1 = () => {
-    if (step01Complete) setEditingStep(2);
+    if (step01Complete) {
+      setStep1Open(false);
+      setStep2Open(true);
+    }
   };
   const handleContinueFromStep2 = () => {
-    if (step02Ready) setEditingStep(null);
+    if (step02Ready) setStep2Open(false);
   };
 
   /* ---------- Calculations ---------- */
