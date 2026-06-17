@@ -1503,15 +1503,15 @@ function Section({
           <button
             type="button"
             onClick={onToggle}
-            className="flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             aria-expanded={open}
+            aria-label={open ? "Collapse section" : "Expand section"}
           >
             {!open && summary && (
               <span className="hidden max-w-[16rem] truncate md:inline">
                 {summary}
               </span>
             )}
-            <span>{open ? "Collapse" : "Expand"}</span>
             <ChevronDown
               className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`}
             />
