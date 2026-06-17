@@ -262,6 +262,89 @@ function Index() {
     };
   }, [hasP2M, p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
 
+  // ---- Workforce model (channel-specific when channel AHTs are provided) ----
+  const workforce = useMemo(() => {
+    // Total annual workload volume (use automation volume if present, else voice volume)
+    const totalVolume = hasAutomation ? annualVolume : voiceVolume;
+    const phoneVol = totalVolume * (phonePct / 100);
+    const msgVol = totalVolume * (messagingPct / 100);
+    const emailVol = totalVolume * (emailPct / 100);
+
+    // Workload hours per channel
+    let voiceHours: number;
+    let emailHours: number;
+    let msgHours: number;
+    if (useChannelAht) {
+      voiceHours = (phoneVol * voiceAht) / 60;
+      emailHours = (emailVol * emailAht) / 60;
+      msgHours = (msgVol * messagingAht) / 60;
+    } else {
+      voiceHours = (phoneVol * aht) / 60;
+      emailHours = (emailVol * aht) / 60;
+      msgHours = (msgVol * aht) / 60;
+    }
+    const requiredHours = voiceHours + emailHours + msgHours;
+
+    // Productive hours per agent / year
+    // 52 weeks × 40 hrs = 2080 paid hours; productive = paid × (1-shrinkage) × occupancy
+    const productiveHoursPerAgent =
+      2080 * (1 - shrinkage / 100) * (occupancy / 100);
+
+    const baselineRequiredAgents =
+      productiveHoursPerAgent > 0 ? requiredHours / productiveHoursPerAgent : 0;
+
+    // Post-automation: subtract interactions deflected (use channel-weighted AHT)
+    const weightedAht = useChannelAht
+      ? ((phonePct * voiceAht + messagingPct * messagingAht + emailPct * emailAht) /
+          (phonePct + messagingPct + emailPct || 1))
+      : aht;
+    const aiResolved = automationCalc?.aiResolved ?? 0;
+    const p2mShifted = p2mCalc?.shifted ?? 0;
+    // P2M shifts voice to messaging — model time saved on the differential
+    const p2mHoursSaved = useChannelAht
+      ? (p2mShifted * Math.max(0, voiceAht - messagingAht)) / 60
+      : 0;
+    const postHours = Math.max(
+      0,
+      requiredHours - (aiResolved * weightedAht) / 60 - p2mHoursSaved,
+    );
+    const postRequiredAgents =
+      productiveHoursPerAgent > 0 ? postHours / productiveHoursPerAgent : 0;
+
+    const fteFreed = Math.max(0, baselineRequiredAgents - postRequiredAgents);
+    const hoursFreed = Math.max(0, requiredHours - postHours);
+
+    return {
+      voiceHours,
+      emailHours,
+      msgHours,
+      requiredHours,
+      productiveHoursPerAgent,
+      baselineRequiredAgents,
+      postRequiredAgents,
+      fteFreed,
+      hoursFreed,
+      usedChannelAht: useChannelAht,
+    };
+  }, [
+    hasAutomation,
+    annualVolume,
+    voiceVolume,
+    phonePct,
+    messagingPct,
+    emailPct,
+    useChannelAht,
+    voiceAht,
+    emailAht,
+    messagingAht,
+    aht,
+    occupancy,
+    shrinkage,
+    automationCalc,
+    p2mCalc,
+  ]);
+
+
   const total = useMemo(() => {
     const baseline = (automationCalc?.baseline ?? 0) + (p2mCalc?.baseline ?? 0);
     const finalCost =
