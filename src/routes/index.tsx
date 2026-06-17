@@ -1445,6 +1445,18 @@ function Index() {
             contracting.
           </div>
         </footer>
+
+        {presentationOpen && showStep3 && (
+          <PresentationView
+            onClose={() => setPresentationOpen(false)}
+            customerName={customerName}
+            dealStage={dealStage}
+            currency={currency}
+            advisor={advisor}
+            total={total}
+            fmt={fmt}
+          />
+        )}
       </div>
     </TooltipProvider>
   );
