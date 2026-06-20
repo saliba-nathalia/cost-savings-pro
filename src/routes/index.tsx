@@ -2005,7 +2005,7 @@ function Index() {
                           <div className="text-xs text-muted-foreground">
                             Defaults are industry benchmarks for{" "}
                             <span className="font-medium text-foreground">
-                              {benchmarks?.label ?? customIndustry || "your industry"}
+                              {benchmarks?.label ?? (customIndustry || "your industry")}
                             </span>
                             . Override with customer-specific values for highest accuracy.
                           </div>
