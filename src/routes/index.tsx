@@ -1803,8 +1803,16 @@ function Index() {
                             onChange={setAht}
                             step={0.1}
                           />
+                          <BenchmarkBadge
+                            value={aht}
+                            low={6}
+                            high={10}
+                            label="voice AHT"
+                            range={BENCHMARK_RANGE.voice}
+                          />
                         </Field>
                       )}
+
 
                       <Collapsible open={advOpen} onOpenChange={setAdvOpen}>
                         <CollapsibleTrigger asChild>
