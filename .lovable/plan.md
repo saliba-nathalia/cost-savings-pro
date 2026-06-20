@@ -1,45 +1,35 @@
-# Build Prompt: Collapsible Steps + Presentation-Friendly View
+## Problem
 
-Enhance the Outcomes Calculator with two improvements. Frontend/presentation only — preserve all existing calculation logic, formulas, confidence scoring, and currency formatting.
+When the user picks only **Workforce Sizing & Staffing** (third use case), the Executive Summary still renders the four financial KPI cards (Annual Savings, ROI Multiple, Cost Reduction, Payback Period) showing `$0 / 0.0x / 0.0% / —`. That math depends on automation or phone-to-messaging savings, which staffing alone doesn't produce — so the zeros read as a broken state.
 
-## 1. Collapsible Step Sections (01 and 02)
+The workforce/staffing data already has its own dedicated KPI row right below (Required Hours, Baseline Agents, FTE Freed), so the financial row is purely noise in this case.
 
-Currently, once Step 03 (Results) becomes available, Steps 01 (Opportunity Setup) and 02 (Data Inputs) auto-collapse and can only be reopened by clicking "Edit". Change this so:
+## Change (frontend-only, no math edits)
 
-- Each completed step (01 and 02) shows a chevron/caret toggle in its header next to the summary chips.
-- Users can freely expand or collapse 01 and 02 at any time, independent of which step is "active".
-- Step 03 remains visible alongside expanded 01/02 — they coexist rather than replace each other.
-- Default state when Step 03 first becomes available: both 01 and 02 collapsed (current behavior), but the toggle is now always visible and clickable.
-- Smooth expand/collapse transition consistent with current Anthropic-minimalist styling (light gray dividers, generous whitespace).
-- Editing a field in an expanded section recalculates results live in Step 03 — no "Save" or "Apply" required.
+Treat the financial KPI row as conditional: only show it when at least one revenue-impacting use case is selected (`hasAutomation || hasP2M`). When only `hasStaffing` is on, lead the Executive Summary with the workforce KPIs instead.
 
-## 2. Presentation / Copy-to-Deck View
+### 1. Executive Summary (Step 03), around line 1419
 
-Add a button at the bottom of the Results section labeled **"Presentation View"** (or **"Copy to Deck"**) alongside the existing PDF export.
+Wrap the 4-card financial KPI grid in `{(hasAutomation || hasP2M) && ( ... )}`. The existing headline + "What we found" copy already adapts to staffing-only, so no text changes needed.
 
-Clicking it opens a clean, slide-styled read-only summary optimized for copy-paste into PowerPoint, Google Slides, or Keynote:
+The workforce KPI block at line 1505 (`hasStaffing && workforce`) stays as-is and becomes the primary KPI row when staffing-only is selected.
 
-- Opens in a modal/overlay (or a dedicated `/presentation` route — pick the simpler option) with a white background, large black typography, generous whitespace, no app chrome.
-- Content is structured as discrete "slide-like" blocks the user can select and copy individually or all at once:
-  1. **Title slide**: Client name, deal stage, currency, date.
-  2. **Headline outcomes**: 2–4 large KPI tiles (annual savings, payback period, FTE freed, ROI %).
-  3. **What we found**: plain-language summary paragraph.
-  4. **What this means**: business impact paragraph.
-  5. **Assumptions & confidence**: bullet list distinguishing customer-provided vs. assumed inputs, plus confidence level.
-- Each block is a clean rectangular section with comfortable padding so a user can screenshot or select-and-copy a single block.
-- Provide a **"Copy all"** button (copies formatted plain text / rich text to clipboard) and **"Copy as image"** is NOT required.
-- Include a **"Back to Calculator"** button to return to the editable view.
+### 2. Presentation / Deck view
 
-### Editability on the deck — recommendation
+- Line ~2441 `DeckKpi` financial row: wrap in the same `(hasAutomation || hasP2M)` condition so the deck slide doesn't show $0 cards either.
+- Line ~2249 copy-all text (`Annual Savings / ROI / Cost Reduction / Payback`): only append those bullets when a financial use case is active. Keep the workforce bullets unconditional when `workforce` exists.
+- The workforce deck block at line 2506 already renders only when `workforce` exists — leaves it as the headline KPI row for staffing-only decks.
 
-True bi-directional editing inside PowerPoint/Google Slides is not possible without a custom add-in (out of scope). Instead, the Presentation View itself remains **live and editable** within the app: numeric KPI tiles and key inputs (volumes, AHT, containment %, hourly cost) are click-to-edit inline. The user can sit with the customer in the Presentation View, adjust assumptions live, and watch the KPIs recalc — without ever leaving the page or returning to the dense calculator UI. When done, they copy-paste the polished result into their deck.
+### 3. PDF export (line ~566, ~652)
 
-- Inline-editable fields are visually subtle (dotted underline on hover) so the view still looks like a finished slide.
-- All edits flow through the same state as the main calculator — closing Presentation View returns the user to Step 03 with all changes persisted.
+Same conditional: skip the Annual Savings / ROI / Cost Reduction / Payback rows in the PDF summary table when neither automation nor P2M is selected. Keep workforce rows.
 
-## Constraints
+## Out of scope
 
-- No new dependencies.
-- Reuse existing formatting helpers (currency, percentage, confidence labels).
-- Preserve Anthropic-style aesthetic: white bg, black type, light gray dividers, no gradients or bright colors.
-- PDF export remains unchanged.
+- No changes to calculation logic, advisor headline/findings text, channel mix inputs, or workforce math.
+- No changes to the input steps (01/02).
+- "ROI Multiple" stays as the label everywhere it's shown — only its visibility changes.
+
+## Files touched
+
+- `src/routes/index.tsx` (single file, three conditional wraps + PDF/copy text guards)
