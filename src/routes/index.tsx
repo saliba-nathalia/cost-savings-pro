@@ -1138,7 +1138,11 @@ function Index() {
     set(s.p2mSoftware, setP2mSoftware);
     set(s.occupancy, setOccupancy);
     set(s.shrinkage, setShrinkage);
+    set(s.scenarioMode, setScenarioMode);
+    set(s.rampMonths, setRampMonths);
+    set(s.pdfTheme, setPdfTheme);
     if (s.customerName && s.useCases?.length) {
+
       setStep1Open(false);
       setStep2Open(false);
     }
