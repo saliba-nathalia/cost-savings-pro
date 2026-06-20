@@ -429,6 +429,32 @@ function Index() {
     };
   }, [automationCalc, p2mCalc]);
 
+  // Multi-year projection with ramp-up: Year 1 prorated by ramp curve, Years 2+ full run-rate
+  const multiYear = useMemo(() => {
+    if (!(hasAutomation || hasP2M)) return null;
+    const fullSavings = total.savings;
+    const baseline = total.baseline;
+    // Average attainment in Year 1 with linear ramp over `rampMonths` (capped at 12)
+    const r = Math.max(0, Math.min(12, rampMonths));
+    const year1Attainment = r <= 0 ? 1 : Math.max(0, (12 - r / 2) / 12);
+    const y1Savings = fullSavings * year1Attainment;
+    const y2Savings = fullSavings;
+    const y3Savings = fullSavings;
+    const rows = [
+      { year: 1, baseline, savings: y1Savings, finalCost: baseline - y1Savings, software: total.software, net: y1Savings - total.software, attainment: year1Attainment },
+      { year: 2, baseline, savings: y2Savings, finalCost: baseline - y2Savings, software: 0, net: y2Savings, attainment: 1 },
+      { year: 3, baseline, savings: y3Savings, finalCost: baseline - y3Savings, software: 0, net: y3Savings, attainment: 1 },
+    ];
+    let cum = 0;
+    const withCum = rows.map((r) => {
+      cum += r.net;
+      return { ...r, cumulative: cum };
+    });
+    const cumulativeRoi = total.software > 0 ? (y1Savings + y2Savings + y3Savings) / total.software : 0;
+    return { rows: withCum, cumulativeRoi };
+  }, [hasAutomation, hasP2M, total, rampMonths]);
+
+
   /* ---------- Executive summary (structured) ---------- */
   const advisor = useMemo(() => {
     const ucList = Array.from(useCases).map((k) => USE_CASE_LABELS[k]);
