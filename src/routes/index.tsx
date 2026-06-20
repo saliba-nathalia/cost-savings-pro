@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2, TrendingDown, BarChart3, Lightbulb } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
