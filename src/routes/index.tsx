@@ -703,7 +703,7 @@ function Index() {
 
   /* ---------- Snapshot / Save / Share / Comments ---------- */
   const snapshot = () => ({
-    customerName, dealStage, currency, useCases: Array.from(useCases),
+    customerName, currency, useCases: Array.from(useCases),
     dataSource, numberOfAgents, annualVolume, voiceVolume,
     phonePct, messagingPct, emailPct,
     costMode, costPerInteraction, supportModel, hourlyCost, aht,
