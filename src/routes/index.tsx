@@ -661,14 +661,14 @@ function Index() {
       items.forEach((it) => writePara(`• ${it}`));
     };
 
-    if (advisor.whatWeFound.length) {
+    if (effectiveAdvisor.whatWeFound.length) {
       section("What we found");
-      writeBullets(advisor.whatWeFound);
+      writeBullets(effectiveAdvisor.whatWeFound);
       y += 4;
     }
-    if (advisor.whatThisMeans) {
+    if (effectiveAdvisor.whatThisMeans) {
       section("What this means");
-      writePara(advisor.whatThisMeans);
+      writePara(effectiveAdvisor.whatThisMeans);
       y += 4;
     }
     section("What we assumed");
