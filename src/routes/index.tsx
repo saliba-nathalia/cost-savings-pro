@@ -432,9 +432,15 @@ function Index() {
       );
     }
     if (hasStaffing && workforce) {
-      whatWeFound.push(
-        `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
-      );
+      if (hasAutomation || hasP2M) {
+        whatWeFound.push(
+          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
+        );
+      } else {
+        whatWeFound.push(
+          `Staffing model: about ${workforce.baselineRequiredAgents.toFixed(0)} agents needed to handle today's workload (~${fmtNumber(workforce.requiredHours)} productive hours/year).`,
+        );
+      }
     }
 
     // What this means
