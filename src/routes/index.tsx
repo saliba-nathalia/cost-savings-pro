@@ -1771,7 +1771,6 @@ function Index() {
               );
             }}
             customerName={customerName}
-            dealStage={dealStage}
             currency={currency}
             advisor={advisor}
             total={total}
