@@ -670,12 +670,19 @@ function Index() {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
     let y = margin;
+
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
     doc.text("Outcomes Executive Summary", margin, y);
+    doc.setTextColor(20);
     y += 28;
+
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
