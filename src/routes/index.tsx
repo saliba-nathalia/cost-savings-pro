@@ -2088,11 +2088,15 @@ function UseCaseCard({
   title,
   desc,
   onClick,
+  icon,
+  category,
 }: {
   active: boolean;
   title: string;
   desc: string;
   onClick: () => void;
+  icon?: React.ReactNode;
+  category?: string;
 }) {
   return (
     <button
@@ -2105,7 +2109,22 @@ function UseCaseCard({
       }`}
     >
       <Checkbox checked={active} className="mt-0.5" />
-      <div>
+      {icon && (
+        <div
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+            active ? "bg-foreground text-background" : "bg-secondary text-foreground"
+          }`}
+          aria-hidden
+        >
+          {icon}
+        </div>
+      )}
+      <div className="flex-1">
+        {category && (
+          <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {category}
+          </div>
+        )}
         <div className="text-sm font-medium text-foreground">{title}</div>
         <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
       </div>
