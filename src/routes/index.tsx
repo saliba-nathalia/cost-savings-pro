@@ -1099,7 +1099,9 @@ function Index() {
     aiCost, softwareInvestment, containmentMode, resolutionRate, automationType,
     p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
     occupancy, shrinkage,
+    scenarioMode, rampMonths, pdfTheme,
   });
+
   const applySnapshot = (s: any) => {
     if (!s || typeof s !== "object") return;
     const set = <T,>(v: T | undefined, fn: (x: T) => void) => {
