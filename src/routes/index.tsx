@@ -410,9 +410,13 @@ function Index() {
     // Headline (plain English)
     let headline = "";
     if (total.savings > 0 && total.software > 0) {
-      headline = `You could save about ${fmt.compactCurrency(total.savings)} per year and recover your investment in roughly ${total.paybackMonths === Infinity ? "—" : total.paybackMonths.toFixed(1) + " months"}.`;
+      const paybackCalc =
+        total.paybackMonths === Infinity
+          ? "—"
+          : `${total.paybackMonths.toFixed(1)} months (${fmt.compactCurrency(total.software)} ÷ (${fmt.compactCurrency(total.savings)} ÷ 12))`;
+      headline = `You could save about ${fmt.compactCurrency(total.savings)} per year (${fmt.compactCurrency(total.baseline)} baseline − ${fmt.compactCurrency(total.finalCost)} final cost) and recover your investment in roughly ${paybackCalc}.`;
     } else if (total.savings > 0) {
-      headline = `Your estimated annual savings are about ${fmt.compactCurrency(total.savings)}.`;
+      headline = `Your estimated annual savings are about ${fmt.compactCurrency(total.savings)} (${fmt.compactCurrency(total.baseline)} baseline − ${fmt.compactCurrency(total.finalCost)} final cost).`;
     } else if (hasStaffing && workforce) {
       headline = `Your contact center would need about ${workforce.baselineRequiredAgents.toFixed(0)} agents to handle today's workload.`;
     } else {
@@ -423,12 +427,12 @@ function Index() {
     const whatWeFound: string[] = [];
     if (hasAutomation && automationCalc) {
       whatWeFound.push(
-        `AI handles about ${fmtNumber(automationCalc.aiResolved)} of ${fmtNumber(automationCalc.volume)} interactions a year (${containment.toFixed(0)}% containment), saving ${fmt.compactCurrency(automationCalc.savings)}.`,
+        `AI handles about ${fmtNumber(automationCalc.aiResolved)} of ${fmtNumber(automationCalc.volume)} interactions a year (${containment.toFixed(0)}% containment), saving ${fmt.compactCurrency(automationCalc.savings)} (${fmtNumber(automationCalc.volume)} × ${fmt.fmtCurrency2(humanCost)} baseline − [${fmtNumber(automationCalc.aiResolved)} × ${fmt.fmtCurrency2(aiCost)} AI + ${fmtNumber(automationCalc.remainingHuman)} × ${fmt.fmtCurrency2(humanCost)} human]).`,
       );
     }
     if (hasP2M && p2mCalc) {
       whatWeFound.push(
-        `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year.`,
+        `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year (${fmtNumber(p2mCalc.shifted)} calls shifted × (${fmt.fmtCurrency2(p2mPhoneCost)} phone − ${fmt.fmtCurrency2(p2mMessagingCost)} messaging)).`,
       );
     }
     if (hasStaffing && workforce) {
@@ -446,9 +450,9 @@ function Index() {
     // What this means
     let whatThisMeans = "";
     if (total.savings > 0 && total.software > 0) {
-      whatThisMeans = `For every ${fmt.compactCurrency(total.software)} invested in software, you get back about ${fmt.compactCurrency(total.savings)} in annual savings — a ${total.roi.toFixed(1)}× return and a ${fmtPct(total.costReduction)} cost reduction overall.`;
+      whatThisMeans = `For every ${fmt.compactCurrency(total.software)} invested in software, you get back about ${fmt.compactCurrency(total.savings)} in annual savings — a ${total.roi.toFixed(1)}× return (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.software)}) and a ${fmtPct(total.costReduction)} cost reduction overall (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.baseline)}).`;
     } else if (total.savings > 0) {
-      whatThisMeans = `That's roughly a ${fmtPct(total.costReduction)} reduction in your annual contact center cost base.`;
+      whatThisMeans = `That's roughly a ${fmtPct(total.costReduction)} reduction in your annual contact center cost base (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.baseline)}).`;
     } else if (hasStaffing) {
       whatThisMeans = "Add automation or phone-to-messaging to model how those changes would reduce your staffing needs.";
     }
@@ -459,6 +463,7 @@ function Index() {
       whatThisMeans +=
         " Reaching this containment level usually requires integrations with your CRM, OMS, billing, or identity systems.";
     }
+
 
     // What we assumed
     const customerInputs: string[] = [];
