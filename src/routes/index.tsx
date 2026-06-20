@@ -1899,6 +1899,37 @@ function Index() {
                 </p>
               )}
 
+              {/* Scenario & ramp controls — only meaningful when a financial use case is selected */}
+              {(hasAutomation || hasP2M) && (
+                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Scenario
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <RadioPill active={scenarioMode === "conservative"} label="Conservative (−10pp)" onClick={() => setScenarioMode("conservative")} />
+                        <RadioPill active={scenarioMode === "expected"} label="Expected" onClick={() => setScenarioMode("expected")} />
+                        <RadioPill active={scenarioMode === "aggressive"} label="Aggressive (+10pp)" onClick={() => setScenarioMode("aggressive")} />
+                      </div>
+                    </div>
+                    <div className="w-full md:w-auto">
+                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Ramp to full run-rate
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <NumberInput value={rampMonths} onChange={(n) => setRampMonths(Math.max(0, Math.min(12, n)))} />
+                        <span className="text-xs text-muted-foreground">months</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-[11px] text-muted-foreground">
+                    Scenario adjusts containment & deflection by ±10pp. Ramp prorates Year 1 savings.
+                  </div>
+                </div>
+              )}
+
+
               {/* KPIs — financial metrics only when Automation or P2M is selected */}
               {(hasAutomation || hasP2M) && (
                 <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
