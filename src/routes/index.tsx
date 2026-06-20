@@ -951,20 +951,26 @@ function Index() {
               <div className="grid grid-cols-1 gap-3">
                 <UseCaseCard
                   active={hasAutomation}
+                  icon={<TrendingDown className="h-4 w-4" />}
+                  category="Cost reduction"
                   title="Cost Savings / Automation"
                   desc="AI deflects interactions from human agents."
                   onClick={() => toggleUseCase("automation")}
                 />
                 <UseCaseCard
                   active={hasP2M}
+                  icon={<TrendingDown className="h-4 w-4" />}
+                  category="Cost reduction"
                   title="Cost Savings / Phone to Messaging"
                   desc="Shift volume from voice to lower-cost messaging."
                   onClick={() => toggleUseCase("phone_to_messaging")}
                 />
                 <UseCaseCard
                   active={hasStaffing}
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  category="Analysis"
                   title="Workforce Sizing & Staffing Analysis"
-                  desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
+                  desc="Current-state contact center sizing using AHT, occupancy, and shrinkage. Not for ROI or savings — combine with other use cases to model efficiencies."
                   onClick={() => toggleUseCase("staffing")}
                 />
               </div>
