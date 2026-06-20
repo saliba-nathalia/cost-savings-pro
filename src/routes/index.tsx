@@ -247,8 +247,8 @@ function Index() {
     setHourlyCost(HOURLY_DEFAULTS[m]);
   };
 
-  // Scenario-adjusted assumption values used in all financial calcs
-  const effContainment = Math.max(0, Math.min(100, 0));
+
+
 
   /* ---------- Step gating ---------- */
   const step01Complete = useCases.size > 0;
