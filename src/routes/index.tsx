@@ -298,6 +298,34 @@ function Index() {
   // Step 01
   const [customerName, setCustomerName] = useState("");
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
+  const [industry, setIndustry] = useState<IndustryKey>("retail");
+  const [customIndustry, setCustomIndustry] = useState("");
+  // Per-benchmark customer overrides ({ source, url } — value lives in its own input)
+  const [benchmarkOverrides, setBenchmarkOverrides] = useState<
+    Partial<Record<BenchmarkKey, { source: string; url?: string }>>
+  >({});
+  const setBenchmarkOverride = (
+    k: BenchmarkKey,
+    v: { source: string; url?: string } | null,
+  ) =>
+    setBenchmarkOverrides((prev) => {
+      const next = { ...prev };
+      if (!v || !v.source.trim()) delete next[k];
+      else next[k] = v;
+      return next;
+    });
+  const benchmarks = INDUSTRY_BENCHMARKS[industry];
+  const activeBenchmark = (k: BenchmarkKey): BenchmarkValue | null => {
+    const base = benchmarks?.[k] ?? null;
+    const ov = benchmarkOverrides[k];
+    if (!ov) return base;
+    return {
+      value: base?.value ?? 0,
+      range: base?.range ?? "—",
+      source: ov.source,
+      url: ov.url,
+    };
+  };
   const [useCases, setUseCases] = useState<Set<UseCaseKey>>(new Set());
 
   const hasAutomation = useCases.has("automation");
