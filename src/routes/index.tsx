@@ -1284,6 +1284,7 @@ function Index() {
     p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
     occupancy, shrinkage,
     scenarioMode, rampMonths, pdfTheme,
+    industry, customIndustry, benchmarkOverrides,
   });
 
   const applySnapshot = (s: any) => {
