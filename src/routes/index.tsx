@@ -2378,12 +2378,20 @@ function Index() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        onClick={() => { setCompareWith(s.name); setCompareOpen(true); }}
+                      >
+                        Compare
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => handleDeleteSave(s.name)}
                         aria-label="Delete saved scenario"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+
                   </li>
                 ))}
               </ul>
