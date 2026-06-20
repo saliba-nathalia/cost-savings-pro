@@ -154,7 +154,6 @@ function Index() {
   /* ---------- State ---------- */
   // Step 01
   const [customerName, setCustomerName] = useState("");
-  const [dealStage, setDealStage] = useState("Discovery");
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
   const [useCases, setUseCases] = useState<Set<UseCaseKey>>(new Set());
 
