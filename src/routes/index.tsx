@@ -657,21 +657,23 @@ function Index() {
       doc.addPage();
       y = margin;
     }
-    section("Financial Breakdown");
-    const rows: [string, string][] = [
-      ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
-      ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
-      ["Total Annual Savings", fmt.fmtCurrency(total.savings)],
-      ["Total Software Investment", fmt.fmtCurrency(total.software)],
-      ["Net Benefit", fmt.fmtCurrency(total.netBenefit)],
-    ];
-    rows.forEach(([k, v]) => {
-      doc.setTextColor(90);
-      doc.text(k, margin, y);
-      doc.setTextColor(20);
-      doc.text(v, pageW - margin, y, { align: "right" });
-      y += 16;
-    });
+    if (hasFinancial) {
+      section("Financial Breakdown");
+      const rows: [string, string][] = [
+        ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
+        ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
+        ["Total Annual Savings", fmt.fmtCurrency(total.savings)],
+        ["Total Software Investment", fmt.fmtCurrency(total.software)],
+        ["Net Benefit", fmt.fmtCurrency(total.netBenefit)],
+      ];
+      rows.forEach(([k, v]) => {
+        doc.setTextColor(90);
+        doc.text(k, margin, y);
+        doc.setTextColor(20);
+        doc.text(v, pageW - margin, y, { align: "right" });
+        y += 16;
+      });
+    }
 
     doc.save(
       `Outcomes-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`,
