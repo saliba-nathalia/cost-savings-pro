@@ -2407,16 +2407,20 @@ function BreakdownRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-3">
-      <div>
+      <div className="min-w-0 flex-1">
         <div
           className={`text-sm ${emphasis ? "font-medium text-foreground" : "text-foreground/90"}`}
         >
           {k}
         </div>
-        {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
+        {sub && (
+          <div className="mt-1 text-xs leading-relaxed text-muted-foreground/70 tabular-nums">
+            {sub}
+          </div>
+        )}
       </div>
       <div
-        className={`tabular-nums ${
+        className={`shrink-0 tabular-nums ${
           emphasis
             ? "font-serif text-xl tracking-tight text-foreground"
             : "text-sm font-medium text-foreground"
@@ -2426,6 +2430,7 @@ function BreakdownRow({
       </div>
     </div>
   );
+
 }
 
 /* ---------- Presentation View (deck-friendly, copy-paste) ---------- */
