@@ -410,9 +410,13 @@ function Index() {
     // Headline (plain English)
     let headline = "";
     if (total.savings > 0 && total.software > 0) {
-      headline = `You could save about ${fmt.compactCurrency(total.savings)} per year and recover your investment in roughly ${total.paybackMonths === Infinity ? "—" : total.paybackMonths.toFixed(1) + " months"}.`;
+      const paybackCalc =
+        total.paybackMonths === Infinity
+          ? "—"
+          : `${total.paybackMonths.toFixed(1)} months (${fmt.compactCurrency(total.software)} ÷ (${fmt.compactCurrency(total.savings)} ÷ 12))`;
+      headline = `You could save about ${fmt.compactCurrency(total.savings)} per year (${fmt.compactCurrency(total.baseline)} baseline − ${fmt.compactCurrency(total.finalCost)} final cost) and recover your investment in roughly ${paybackCalc}.`;
     } else if (total.savings > 0) {
-      headline = `Your estimated annual savings are about ${fmt.compactCurrency(total.savings)}.`;
+      headline = `Your estimated annual savings are about ${fmt.compactCurrency(total.savings)} (${fmt.compactCurrency(total.baseline)} baseline − ${fmt.compactCurrency(total.finalCost)} final cost).`;
     } else if (hasStaffing && workforce) {
       headline = `Your contact center would need about ${workforce.baselineRequiredAgents.toFixed(0)} agents to handle today's workload.`;
     } else {
@@ -423,12 +427,12 @@ function Index() {
     const whatWeFound: string[] = [];
     if (hasAutomation && automationCalc) {
       whatWeFound.push(
-        `AI handles about ${fmtNumber(automationCalc.aiResolved)} of ${fmtNumber(automationCalc.volume)} interactions a year (${containment.toFixed(0)}% containment), saving ${fmt.compactCurrency(automationCalc.savings)}.`,
+        `AI handles about ${fmtNumber(automationCalc.aiResolved)} of ${fmtNumber(automationCalc.volume)} interactions a year (${containment.toFixed(0)}% containment), saving ${fmt.compactCurrency(automationCalc.savings)} (${fmtNumber(automationCalc.volume)} × ${fmt.fmtCurrency2(humanCost)} baseline − [${fmtNumber(automationCalc.aiResolved)} × ${fmt.fmtCurrency2(aiCost)} AI + ${fmtNumber(automationCalc.remainingHuman)} × ${fmt.fmtCurrency2(humanCost)} human]).`,
       );
     }
     if (hasP2M && p2mCalc) {
       whatWeFound.push(
-        `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year.`,
+        `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year (${fmtNumber(p2mCalc.shifted)} calls shifted × (${fmt.fmtCurrency2(p2mPhoneCost)} phone − ${fmt.fmtCurrency2(p2mMessagingCost)} messaging)).`,
       );
     }
     if (hasStaffing && workforce) {
@@ -446,9 +450,9 @@ function Index() {
     // What this means
     let whatThisMeans = "";
     if (total.savings > 0 && total.software > 0) {
-      whatThisMeans = `For every ${fmt.compactCurrency(total.software)} invested in software, you get back about ${fmt.compactCurrency(total.savings)} in annual savings — a ${total.roi.toFixed(1)}× return and a ${fmtPct(total.costReduction)} cost reduction overall.`;
+      whatThisMeans = `For every ${fmt.compactCurrency(total.software)} invested in software, you get back about ${fmt.compactCurrency(total.savings)} in annual savings — a ${total.roi.toFixed(1)}× return (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.software)}) and a ${fmtPct(total.costReduction)} cost reduction overall (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.baseline)}).`;
     } else if (total.savings > 0) {
-      whatThisMeans = `That's roughly a ${fmtPct(total.costReduction)} reduction in your annual contact center cost base.`;
+      whatThisMeans = `That's roughly a ${fmtPct(total.costReduction)} reduction in your annual contact center cost base (${fmt.compactCurrency(total.savings)} ÷ ${fmt.compactCurrency(total.baseline)}).`;
     } else if (hasStaffing) {
       whatThisMeans = "Add automation or phone-to-messaging to model how those changes would reduce your staffing needs.";
     }
@@ -460,9 +464,11 @@ function Index() {
         " Reaching this containment level usually requires integrations with your CRM, OMS, billing, or identity systems.";
     }
 
-    // What we assumed
+
+    // What we assumed — each assumption is paired with what to validate to raise confidence
     const customerInputs: string[] = [];
     const assumedInputs: string[] = [];
+    const toValidate: string[] = [];
     if (dataSource === "actual") {
       if (hasAutomation) customerInputs.push(`Annual volume: ${fmtNumber(annualVolume)}`);
       if (hasP2M) customerInputs.push(`Phone volume: ${fmtNumber(p2mPhoneVolume)}`);
@@ -471,24 +477,46 @@ function Index() {
       assumedInputs.push(
         `Human cost from ${SUPPORT_MODEL_LABEL[supportModel]} (${fmt.fmtCurrency(hourlyCost)}/hr × ${aht} min AHT = ${fmt.fmtCurrency2(derivedFromHourly)})`,
       );
+      toValidate.push(
+        `Confirm actual per-interaction human cost from finance/WFM (currently derived from ${fmt.fmtCurrency(hourlyCost)}/hr × ${aht} min AHT = ${fmt.fmtCurrency2(derivedFromHourly)}).`,
+      );
+      toValidate.push(
+        `Confirm actual annual interaction volume${hasP2M ? " and phone volume" : ""} from contact-center reporting instead of benchmarks.`,
+      );
     }
     if (hasAutomation) {
       if (containmentMode === "guided") {
         assumedInputs.push(
           `Containment: ${guidedContainment}% (${AUTOMATION_TYPES[automationType].label})`,
         );
+        toValidate.push(
+          `Replace the guided ${guidedContainment}% containment estimate with a measured rate from a pilot or comparable deployment.`,
+        );
       } else {
         customerInputs.push(`Containment: ${containment}%`);
+      }
+      if (containment > 80) {
+        toValidate.push(
+          `Pressure-test the ${containment}% containment — anything above 80% is uncommon and usually requires deep CRM/OMS/billing integrations.`,
+        );
       }
     }
     if (hasStaffing) {
       assumedInputs.push(`Occupancy ${occupancy}%, shrinkage ${shrinkage}%`);
+      if (occupancy === 80 && shrinkage === 20) {
+        toValidate.push(
+          `Replace default occupancy (80%) and shrinkage (20%) with the customer's actual WFM figures.`,
+        );
+      }
       if (useChannelAht) {
         customerInputs.push(
           `Channel AHTs — voice ${voiceAht}m, email ${emailAht}m, messaging ${messagingAht}m`,
         );
       } else {
         assumedInputs.push(`Blended AHT of ${aht} min across all channels`);
+        toValidate.push(
+          `Provide per-channel AHTs (voice / email / messaging) instead of the single blended ${aht}-minute figure.`,
+        );
       }
     }
 
@@ -510,10 +538,13 @@ function Index() {
       score >= 5 ? "High" : score >= 2 ? "Medium" : "Low";
     const confidenceExplanation =
       level === "High"
-        ? "Most of your inputs are real customer data, so this estimate is reliable for planning."
+        ? toValidate.length === 0
+          ? "All key inputs come from customer data, so this estimate is reliable for planning."
+          : "Most inputs come from customer data. Validate the items below to lock the estimate in for contracting."
         : level === "Medium"
-          ? "A few key numbers are still assumptions — directionally right, worth validating before contracting."
-          : "Many inputs are assumptions. Treat this as a rough starting point and refine with customer data.";
+          ? "Several key numbers are still assumptions — directionally right, but validate the items below before contracting."
+          : "Most inputs are assumptions. Treat this as a rough starting point and validate the items below with the customer.";
+
 
     return {
       headline,
@@ -522,8 +553,10 @@ function Index() {
       whatThisMeans,
       customerInputs,
       assumedInputs,
+      toValidate,
       confidence: { level, explanation: confidenceExplanation },
     };
+
   }, [
     useCases,
     total,
@@ -555,7 +588,10 @@ function Index() {
     emailAht,
     messagingAht,
     numberOfAgents,
+    p2mPhoneCost,
+    p2mMessagingCost,
     fmt,
+
   ]);
 
   // Apply user edits from the Executive Summary across PDF and Presentation View
@@ -1584,50 +1620,55 @@ function Index() {
               )}
 
 
-              {/* What we assumed */}
-              <SummaryBlock title="What we assumed">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div>
-                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      From your data
-                    </div>
-                    {advisor.customerInputs.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm text-foreground/90">
-                        {advisor.customerInputs.map((s, i) => (
-                          <li key={i}>· {s}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        No customer-provided inputs.
-                      </div>
-                    )}
+              {/* What we used from the customer */}
+              <SummaryBlock title="What we used from your data">
+                {advisor.customerInputs.length > 0 ? (
+                  <ul className="space-y-1.5 text-sm text-foreground/90">
+                    {advisor.customerInputs.map((s, i) => (
+                      <li key={i}>· {s}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    No customer-provided inputs — every number below is an assumption.
                   </div>
-                  <div>
-                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Assumed defaults
-                    </div>
-                    {advisor.assumedInputs.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm text-foreground/90">
-                        {advisor.assumedInputs.map((s, i) => (
-                          <li key={i}>· {s}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        None — all inputs are customer-provided.
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </SummaryBlock>
 
-              {/* Confidence */}
+              {/* Confidence + assumptions to validate (consolidated) */}
               <SummaryBlock title={`Confidence: ${advisor.confidence.level}`}>
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {advisor.confidence.explanation}
                 </p>
+                {advisor.assumedInputs.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Currently assumed
+                    </div>
+                    <ul className="space-y-1.5 text-sm text-foreground/90">
+                      {advisor.assumedInputs.map((s, i) => (
+                        <li key={i}>· {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {advisor.toValidate.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      To increase confidence, validate
+                    </div>
+                    <ul className="space-y-1.5 text-sm leading-relaxed text-foreground/90">
+                      {advisor.toValidate.map((s, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </SummaryBlock>
+
 
               {/* Workforce extras when staffing */}
               {hasStaffing && workforce && (
@@ -1657,16 +1698,17 @@ function Index() {
                       <>
                         <BreakdownRow
                           k="Automation — Baseline"
-                          sub="Volume × Human Cost"
+                          sub={`${fmtNumber(automationCalc.volume)} interactions × ${fmt.fmtCurrency2(humanCost)} human cost = ${fmt.fmtCurrency(automationCalc.baseline)}`}
                           v={fmt.fmtCurrency(automationCalc.baseline)}
                         />
                         <BreakdownRow
                           k="Automation — Final Cost"
-                          sub={`${fmtNumber(automationCalc.aiResolved)} AI-resolved`}
+                          sub={`${fmtNumber(automationCalc.aiResolved)} × ${fmt.fmtCurrency2(aiCost)} (AI) + ${fmtNumber(automationCalc.remainingHuman)} × ${fmt.fmtCurrency2(humanCost)} (human) = ${fmt.fmtCurrency(automationCalc.finalCost)}`}
                           v={fmt.fmtCurrency(automationCalc.finalCost)}
                         />
                         <BreakdownRow
                           k="Automation — Savings"
+                          sub={`${fmt.fmtCurrency(automationCalc.baseline)} − ${fmt.fmtCurrency(automationCalc.finalCost)} = ${fmt.fmtCurrency(automationCalc.savings)}`}
                           v={fmt.fmtCurrency(automationCalc.savings)}
                           emphasis
                         />
@@ -1676,16 +1718,17 @@ function Index() {
                       <>
                         <BreakdownRow
                           k="Phone-to-Messaging — Baseline"
-                          sub="Phone volume × phone cost"
+                          sub={`${fmtNumber(p2mPhoneVolume)} phone calls × ${fmt.fmtCurrency2(p2mPhoneCost)} = ${fmt.fmtCurrency(p2mCalc.baseline)}`}
                           v={fmt.fmtCurrency(p2mCalc.baseline)}
                         />
                         <BreakdownRow
                           k="Phone-to-Messaging — Final Cost"
-                          sub={`${fmtNumber(p2mCalc.shifted)} shifted to messaging`}
+                          sub={`${fmtNumber(p2mPhoneVolume - p2mCalc.shifted)} × ${fmt.fmtCurrency2(p2mPhoneCost)} (phone) + ${fmtNumber(p2mCalc.shifted)} × ${fmt.fmtCurrency2(p2mMessagingCost)} (messaging) = ${fmt.fmtCurrency(p2mCalc.finalCost)}`}
                           v={fmt.fmtCurrency(p2mCalc.finalCost)}
                         />
                         <BreakdownRow
                           k="Phone-to-Messaging — Savings"
+                          sub={`${fmtNumber(p2mCalc.shifted)} shifted calls × (${fmt.fmtCurrency2(p2mPhoneCost)} − ${fmt.fmtCurrency2(p2mMessagingCost)}) = ${fmt.fmtCurrency(p2mCalc.savings)}`}
                           v={fmt.fmtCurrency(p2mCalc.savings)}
                           emphasis
                         />
@@ -1693,22 +1736,33 @@ function Index() {
                     )}
                     <BreakdownRow
                       k="Total Annual Savings"
+                      sub={
+                        hasAutomation && hasP2M && automationCalc && p2mCalc
+                          ? `${fmt.fmtCurrency(automationCalc.savings)} + ${fmt.fmtCurrency(p2mCalc.savings)} = ${fmt.fmtCurrency(total.savings)}`
+                          : `${fmt.fmtCurrency(total.baseline)} − ${fmt.fmtCurrency(total.finalCost)} = ${fmt.fmtCurrency(total.savings)}`
+                      }
                       v={fmt.fmtCurrency(total.savings)}
                       emphasis
                     />
                     <BreakdownRow
                       k="Total Software Investment"
+                      sub={
+                        hasAutomation && hasP2M
+                          ? `${fmt.fmtCurrency(automationCalc?.software ?? 0)} (automation) + ${fmt.fmtCurrency(p2mCalc?.software ?? 0)} (P2M) = ${fmt.fmtCurrency(total.software)}`
+                          : undefined
+                      }
                       v={fmt.fmtCurrency(total.software)}
                     />
                     <BreakdownRow
                       k="Net Benefit"
-                      sub="Savings − Software"
+                      sub={`${fmt.fmtCurrency(total.savings)} savings − ${fmt.fmtCurrency(total.software)} software = ${fmt.fmtCurrency(total.netBenefit)}`}
                       v={fmt.fmtCurrency(total.netBenefit)}
                       emphasis
                     />
                   </dl>
                 </SummaryBlock>
               )}
+
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
                 {editingSummary ? (
@@ -2353,16 +2407,20 @@ function BreakdownRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-3">
-      <div>
+      <div className="min-w-0 flex-1">
         <div
           className={`text-sm ${emphasis ? "font-medium text-foreground" : "text-foreground/90"}`}
         >
           {k}
         </div>
-        {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
+        {sub && (
+          <div className="mt-1 text-xs leading-relaxed text-muted-foreground/70 tabular-nums">
+            {sub}
+          </div>
+        )}
       </div>
       <div
-        className={`tabular-nums ${
+        className={`shrink-0 tabular-nums ${
           emphasis
             ? "font-serif text-xl tracking-tight text-foreground"
             : "text-sm font-medium text-foreground"
@@ -2372,6 +2430,7 @@ function BreakdownRow({
       </div>
     </div>
   );
+
 }
 
 /* ---------- Presentation View (deck-friendly, copy-paste) ---------- */
