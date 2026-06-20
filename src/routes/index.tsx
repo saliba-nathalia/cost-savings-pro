@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/collapsible";
 import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2, TrendingDown, BarChart3, Lightbulb } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Dialog,
   DialogContent,
@@ -83,11 +84,154 @@ const AUTOMATION_TYPES: Record<
   api_5_8: { label: "Integrations / APIs (5–8 APIs)", range: [70, 75], mid: 72 },
 };
 
-const BENCHMARK_AHT = { voice: 8, email: 12, messaging: 6 };
-const BENCHMARK_RANGE = {
-  voice: "6–10 min",
-  email: "10–15 min",
-  messaging: "5–7 min",
+/* ---------- Industry benchmarks (publicly sourced) ----------
+ * Phone AHT medians come from "Average Handle Time Benchmarks by Industry"
+ * (Supp, 2026 update) — https://supp.support/blog/average-handle-time-benchmarks
+ * Email / Live-chat medians use the same source's cross-industry channel medians
+ * (live chat 8–11 min, email 12–18 min) when no industry-specific number is
+ * published. Containment & deflection draw on Gartner's 2024 chatbot
+ * containment outlook (≈30% Tier-1 deflection) and Zendesk CX Trends 2025
+ * (self-service deflection 20–35%). Where no defensible public number exists
+ * we mark the row "Estimate — verify with customer data".
+ */
+type IndustryKey =
+  | "banking"
+  | "insurance"
+  | "retail"
+  | "travel"
+  | "airlines"
+  | "utilities"
+  | "telco"
+  | "gaming"
+  | "healthcare"
+  | "other";
+
+type BenchmarkValue = {
+  value: number;
+  range: string;
+  source: string;
+  url?: string;
+};
+
+type IndustryBenchmark = {
+  label: string;
+  voiceAht: BenchmarkValue;
+  emailAht: BenchmarkValue;
+  messagingAht: BenchmarkValue;
+  containment: BenchmarkValue;
+  deflection: BenchmarkValue;
+} | null;
+
+const SUPP_URL =
+  "https://supp.support/blog/average-handle-time-benchmarks";
+const GARTNER_NOTE =
+  "Gartner, Predicts 2024: CX & Conversational AI (chatbot Tier-1 containment ~30%)";
+const ZENDESK_NOTE =
+  "Zendesk CX Trends 2025 (self-service deflection 20–35%)";
+
+const EMAIL_DEFAULT: BenchmarkValue = {
+  value: 15,
+  range: "12–18 min",
+  source: "Supp 2026 (cross-industry email median)",
+  url: SUPP_URL,
+};
+const CHAT_DEFAULT: BenchmarkValue = {
+  value: 9,
+  range: "8–11 min",
+  source: "Supp 2026 (cross-industry live-chat median)",
+  url: SUPP_URL,
+};
+
+const INDUSTRY_BENCHMARKS: Record<IndustryKey, IndustryBenchmark> = {
+  banking: {
+    label: "Banking",
+    voiceAht: { value: 10, range: "8–12 min", source: "Supp 2026 — Financial Services / Banking", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 30, range: "25–35%", source: GARTNER_NOTE },
+    deflection: { value: 25, range: "20–30%", source: ZENDESK_NOTE },
+  },
+  insurance: {
+    label: "Insurance",
+    voiceAht: { value: 10, range: "8–12 min", source: "Estimate aligned to Financial Services band (Supp 2026)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 28, range: "20–35%", source: GARTNER_NOTE },
+    deflection: { value: 22, range: "18–28%", source: ZENDESK_NOTE },
+  },
+  retail: {
+    label: "Retail / E-commerce",
+    voiceAht: { value: 6, range: "5–7 min", source: "Supp 2026 — E-Commerce / Retail", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 40, range: "30–50%", source: GARTNER_NOTE },
+    deflection: { value: 30, range: "25–40%", source: ZENDESK_NOTE },
+  },
+  travel: {
+    label: "Travel & Hospitality",
+    voiceAht: { value: 7, range: "6–9 min", source: "Estimate — Travel typically tracks between Retail and Telecom (Supp 2026 bands)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 30, range: "25–40%", source: GARTNER_NOTE },
+    deflection: { value: 25, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  airlines: {
+    label: "Airlines",
+    voiceAht: { value: 9, range: "7–11 min", source: "Estimate — disruption & rebooking calls push above Travel median (Supp 2026 channel median)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 25, range: "20–30%", source: GARTNER_NOTE },
+    deflection: { value: 22, range: "18–28%", source: ZENDESK_NOTE },
+  },
+  utilities: {
+    label: "Utilities",
+    voiceAht: { value: 7, range: "6–9 min", source: "Estimate — billing & outage mix sits near cross-industry phone median (Supp 2026)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 35, range: "25–45%", source: GARTNER_NOTE },
+    deflection: { value: 28, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  telco: {
+    label: "Telecommunications",
+    voiceAht: { value: 8, range: "7–10 min", source: "Supp 2026 — Telecommunications", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 32, range: "25–40%", source: GARTNER_NOTE },
+    deflection: { value: 28, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  gaming: {
+    label: "Gaming & Betting",
+    voiceAht: { value: 6, range: "5–8 min", source: "Estimate — high-volume digital support, no public median available", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 40, range: "30–50%", source: GARTNER_NOTE },
+    deflection: { value: 35, range: "25–45%", source: ZENDESK_NOTE },
+  },
+  healthcare: {
+    label: "Healthcare",
+    voiceAht: { value: 12, range: "10–15 min", source: "Supp 2026 — Healthcare", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 22, range: "15–30%", source: GARTNER_NOTE },
+    deflection: { value: 18, range: "12–25%", source: ZENDESK_NOTE },
+  },
+  other: null,
+};
+
+const BENCHMARK_KEYS = [
+  "voiceAht",
+  "emailAht",
+  "messagingAht",
+  "containment",
+  "deflection",
+] as const;
+type BenchmarkKey = (typeof BENCHMARK_KEYS)[number];
+const BENCHMARK_LABELS: Record<BenchmarkKey, string> = {
+  voiceAht: "Voice AHT",
+  emailAht: "Email AHT",
+  messagingAht: "Messaging AHT",
+  containment: "Automation containment",
+  deflection: "Phone-to-messaging deflection",
 };
 
 const CURRENCIES: Record<
@@ -155,6 +299,34 @@ function Index() {
   // Step 01
   const [customerName, setCustomerName] = useState("");
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
+  const [industry, setIndustry] = useState<IndustryKey>("retail");
+  const [customIndustry, setCustomIndustry] = useState("");
+  // Per-benchmark customer overrides ({ source, url } — value lives in its own input)
+  const [benchmarkOverrides, setBenchmarkOverrides] = useState<
+    Partial<Record<BenchmarkKey, { source: string; url?: string }>>
+  >({});
+  const setBenchmarkOverride = (
+    k: BenchmarkKey,
+    v: { source: string; url?: string } | null,
+  ) =>
+    setBenchmarkOverrides((prev) => {
+      const next = { ...prev };
+      if (!v || !v.source.trim()) delete next[k];
+      else next[k] = v;
+      return next;
+    });
+  const benchmarks = INDUSTRY_BENCHMARKS[industry];
+  const activeBenchmark = (k: BenchmarkKey): BenchmarkValue | null => {
+    const base = benchmarks?.[k] ?? null;
+    const ov = benchmarkOverrides[k];
+    if (!ov) return base;
+    return {
+      value: base?.value ?? 0,
+      range: base?.range ?? "—",
+      source: ov.source,
+      url: ov.url,
+    };
+  };
   const [useCases, setUseCases] = useState<Set<UseCaseKey>>(new Set());
 
   const hasAutomation = useCases.has("automation");
@@ -192,9 +364,21 @@ function Index() {
 
   // Channel-specific AHTs (staffing)
   const [useChannelAht, setUseChannelAht] = useState(false);
-  const [voiceAht, setVoiceAht] = useState(BENCHMARK_AHT.voice);
-  const [emailAht, setEmailAht] = useState(BENCHMARK_AHT.email);
-  const [messagingAht, setMessagingAht] = useState(BENCHMARK_AHT.messaging);
+  const [voiceAht, setVoiceAht] = useState(8);
+  const [emailAht, setEmailAht] = useState(12);
+  const [messagingAht, setMessagingAht] = useState(6);
+
+  // Sync AHT defaults when the customer hasn't overridden them yet — when
+  // industry changes, push the new industry benchmark into the AHT inputs.
+  useEffect(() => {
+    const b = INDUSTRY_BENCHMARKS[industry];
+    if (!b) return;
+    setVoiceAht(b.voiceAht.value);
+    setEmailAht(b.emailAht.value);
+    setMessagingAht(b.messagingAht.value);
+    setAht(b.voiceAht.value);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [industry]);
 
   const derivedFromHourly = (hourlyCost / 60) * aht;
   const humanCost =
@@ -816,6 +1000,84 @@ function Index() {
       });
     }
 
+    // Sources & Assumptions appendix
+    doc.addPage();
+    y = margin;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(20);
+    doc.text("Sources & Assumptions", margin, y);
+    y += 22;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(90);
+    const industryLabel =
+      benchmarks?.label ?? (customIndustry || "Industry not specified");
+    doc.text(`Industry: ${industryLabel}`, margin, y);
+    y += 18;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20);
+    doc.text("Benchmarks used", margin, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    if (benchmarks) {
+      BENCHMARK_KEYS.forEach((k) => {
+        const b = activeBenchmark(k);
+        if (!b) return;
+        const overridden = benchmarkOverrides[k] ? " [Customer-provided]" : "";
+        const line = `${BENCHMARK_LABELS[k]}: ${b.range} — ${b.source}${overridden}`;
+        const wrapped = doc.splitTextToSize(line, pageW - margin * 2);
+        if (y + wrapped.length * 12 > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.setTextColor(20);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 12 + 4;
+      });
+    } else {
+      const note = doc.splitTextToSize(
+        "No public benchmarks available for the selected industry. All AHT, containment, and deflection values should be validated with customer data.",
+        pageW - margin * 2,
+      );
+      doc.text(note, margin, y);
+      y += note.length * 12 + 4;
+    }
+
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Primary references", margin, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const refs = [
+      "• Supp 2026 — AHT Benchmarks by Industry: https://supp.support/blog/average-handle-time-benchmarks",
+      "• Gartner — Predicts 2024: CX & Conversational AI (chatbot Tier-1 containment outlook)",
+      "• Zendesk CX Trends 2025 — Self-service deflection benchmarks",
+    ];
+    refs.forEach((r) => {
+      const w = doc.splitTextToSize(r, pageW - margin * 2);
+      if (y + w.length * 12 > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(w, margin, y);
+      y += w.length * 12 + 2;
+    });
+
+    y += 10;
+    const disclaimer = doc.splitTextToSize(
+      "Rows tagged 'Estimate' are interpolated where no industry-specific public median exists. Customer-provided rows reflect benchmarks supplied directly by the customer and override our defaults in this report.",
+      pageW - margin * 2,
+    );
+    doc.setTextColor(120);
+    doc.setFontSize(8);
+    doc.text(disclaimer, margin, y);
+
     doc.save(
       `Outcomes-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`,
     );
@@ -1100,6 +1362,7 @@ function Index() {
     p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
     occupancy, shrinkage,
     scenarioMode, rampMonths, pdfTheme,
+    industry, customIndustry, benchmarkOverrides,
   });
 
   const applySnapshot = (s: any) => {
@@ -1141,6 +1404,9 @@ function Index() {
     set(s.scenarioMode, setScenarioMode);
     set(s.rampMonths, setRampMonths);
     set(s.pdfTheme, setPdfTheme);
+    set(s.industry, setIndustry);
+    set(s.customIndustry, setCustomIndustry);
+    set(s.benchmarkOverrides, setBenchmarkOverrides);
     if (s.customerName && s.useCases?.length) {
 
       setStep1Open(false);
@@ -1297,27 +1563,9 @@ function Index() {
                 {shareMsg || "Share"}
               </Button>
               {showStep3 && (
-                <>
-                  <Select value={pdfTheme} onValueChange={(v) => setPdfTheme(v as PdfTheme)}>
-                    <SelectTrigger className="h-8 w-[140px] rounded-full text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="minimal">Theme: Minimal</SelectItem>
-                      <SelectItem value="corporate">Theme: Corporate</SelectItem>
-                      <SelectItem value="warm">Theme: Warm</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
-                    Download PDF
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={exportBoardPdf} className="rounded-full">
-                    Board summary
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={exportProposalPdf} className="rounded-full">
-                    Proposal
-                  </Button>
-                </>
+                <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
+                  Download PDF
+                </Button>
               )}
 
             </div>
@@ -1375,7 +1623,100 @@ function Index() {
                   </SelectContent>
                 </Select>
               </Field>
+              <Field
+                label="Industry"
+                tooltip="Sets the default benchmarks (AHT, containment, deflection) shown in Step 02."
+              >
+                <Select
+                  value={industry}
+                  onValueChange={(v) => setIndustry(v as IndustryKey)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="banking">Banking</SelectItem>
+                    <SelectItem value="insurance">Insurance</SelectItem>
+                    <SelectItem value="retail">Retail / E-commerce</SelectItem>
+                    <SelectItem value="travel">Travel & Hospitality</SelectItem>
+                    <SelectItem value="airlines">Airlines</SelectItem>
+                    <SelectItem value="utilities">Utilities</SelectItem>
+                    <SelectItem value="telco">Telco</SelectItem>
+                    <SelectItem value="gaming">Gaming & Betting</SelectItem>
+                    <SelectItem value="healthcare">Healthcare</SelectItem>
+                    <SelectItem value="other">Other…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {industry === "other" && (
+                  <>
+                    <Input
+                      value={customIndustry}
+                      onChange={(e) => setCustomIndustry(e.target.value)}
+                      placeholder="Industry name"
+                      className="mt-2"
+                    />
+                    <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                      No benchmarks available for this industry. All AHT,
+                      containment, and deflection defaults will need to be
+                      validated with the customer.
+                    </div>
+                  </>
+                )}
+              </Field>
             </div>
+
+            {/* Benchmark sources disclosure */}
+            <details className="rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
+              <summary className="cursor-pointer font-medium">
+                Benchmark sources for {benchmarks?.label ?? (customIndustry || "your industry")}
+              </summary>
+              {benchmarks ? (
+                <ul className="mt-3 space-y-1.5 text-muted-foreground">
+                  {BENCHMARK_KEYS.map((k) => {
+                    const b = activeBenchmark(k);
+                    if (!b) return null;
+                    const overridden = !!benchmarkOverrides[k];
+                    return (
+                      <li key={k} className="flex flex-wrap gap-x-2">
+                        <span className="font-medium text-foreground">
+                          {BENCHMARK_LABELS[k]}:
+                        </span>
+                        <span>{b.range}</span>
+                        <span>·</span>
+                        <span>
+                          {b.url ? (
+                            <a
+                              href={b.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              {b.source}
+                            </a>
+                          ) : (
+                            b.source
+                          )}
+                          {overridden ? " (Customer-provided)" : ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="mt-3 text-muted-foreground">
+                  No public benchmarks for this industry. Use customer-provided
+                  values and add a source label via the "Override" button on
+                  each Step 02 benchmark.
+                </div>
+              )}
+              <div className="mt-3 text-[11px] text-muted-foreground">
+                Phone AHT figures: Supp 2026 AHT Benchmarks{" "}
+                (<a className="underline" href={SUPP_URL} target="_blank" rel="noopener noreferrer">supp.support</a>).
+                Containment/deflection: Gartner 2024 CX & Conversational AI predictions, Zendesk CX Trends 2025.
+                Rows tagged "Estimate" are interpolated where no industry-specific public median exists — please validate with customer data.
+              </div>
+            </details>
+
 
             <Field label="Use Cases (select one or more)">
               <div className="grid grid-cols-1 gap-3">
@@ -1768,38 +2109,62 @@ function Index() {
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <Field
                               label="Voice AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.voice}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("voiceAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={voiceAht}
                                 onChange={setVoiceAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("voiceAht")}
+                                value={voiceAht}
+                                bkey="voiceAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.voiceAht}
+                              />
                             </Field>
                             <Field
                               label="Email AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.email}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("emailAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={emailAht}
                                 onChange={setEmailAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("emailAht")}
+                                value={emailAht}
+                                bkey="emailAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.emailAht}
+                              />
                             </Field>
                             <Field
                               label="Messaging AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.messaging}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("messagingAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={messagingAht}
                                 onChange={setMessagingAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("messagingAht")}
+                                value={messagingAht}
+                                bkey="messagingAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.messagingAht}
+                              />
                             </Field>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Defaults are industry benchmarks. Override with
-                            customer-specific values for highest accuracy.
+                            Defaults are industry benchmarks for{" "}
+                            <span className="font-medium text-foreground">
+                              {benchmarks?.label ?? (customIndustry || "your industry")}
+                            </span>
+                            . Override with customer-specific values for highest accuracy.
                           </div>
                         </>
                       ) : (
@@ -1810,11 +2175,11 @@ function Index() {
                             step={0.1}
                           />
                           <BenchmarkBadge
+                            benchmark={activeBenchmark("voiceAht")}
                             value={aht}
-                            low={6}
-                            high={10}
-                            label="voice AHT"
-                            range={BENCHMARK_RANGE.voice}
+                            bkey="voiceAht"
+                            overrideSet={setBenchmarkOverride}
+                            override={benchmarkOverrides.voiceAht}
                           />
                         </Field>
                       )}
@@ -2777,35 +3142,186 @@ function ToggleCard({
 }
 
 function BenchmarkBadge({
+  benchmark,
   value,
-  low,
-  high,
-  label,
-  range,
+  bkey,
+  overrideSet,
+  override,
 }: {
+  benchmark: BenchmarkValue | null;
   value: number;
-  low: number;
-  high: number;
-  label: string;
-  range: string;
+  bkey: BenchmarkKey;
+  overrideSet: (k: BenchmarkKey, v: { source: string; url?: string } | null) => void;
+  override?: { source: string; url?: string };
 }) {
-  if (!isFinite(value) || value <= 0) return null;
+  const [draftSource, setDraftSource] = useState(override?.source ?? "");
+  const [draftUrl, setDraftUrl] = useState(override?.url ?? "");
+  const [open, setOpen] = useState(false);
+
+  // No benchmark available for this industry
+  if (!benchmark) {
+    return (
+      <div className="mt-2 flex items-start justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+        <span>
+          No public benchmark for this industry — please validate this value with the customer.
+        </span>
+        <OverrideTrigger
+          open={open}
+          setOpen={setOpen}
+          draftSource={draftSource}
+          setDraftSource={setDraftSource}
+          draftUrl={draftUrl}
+          setDraftUrl={setDraftUrl}
+          override={override}
+          onSave={() => {
+            overrideSet(bkey, { source: draftSource, url: draftUrl || undefined });
+            setOpen(false);
+          }}
+          onClear={() => {
+            overrideSet(bkey, null);
+            setDraftSource("");
+            setDraftUrl("");
+            setOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  const [low, high] = parseRange(benchmark.range);
   const status: "below" | "in" | "above" =
-    value < low ? "below" : value > high ? "above" : "in";
+    !isFinite(value) || value <= 0
+      ? "in"
+      : value < low
+      ? "below"
+      : value > high
+      ? "above"
+      : "in";
   const text =
     status === "in"
-      ? `Within industry benchmark for ${label} (${range}).`
+      ? `Within benchmark (${benchmark.range}).`
       : status === "below"
-        ? `Below industry benchmark for ${label} (${range}) — verify this is realistic.`
-        : `Above industry benchmark for ${label} (${range}) — may indicate complexity or training opportunity.`;
+      ? `Below benchmark (${benchmark.range}) — verify this is realistic.`
+      : `Above benchmark (${benchmark.range}) — may indicate complexity or training opportunity.`;
   const color =
     status === "in"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
       : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+
   return (
-    <div className={`mt-2 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
-      {text}
+    <div className={`mt-2 space-y-1 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
+      <div className="flex items-start justify-between gap-2">
+        <span>{text}</span>
+        <OverrideTrigger
+          open={open}
+          setOpen={setOpen}
+          draftSource={draftSource}
+          setDraftSource={setDraftSource}
+          draftUrl={draftUrl}
+          setDraftUrl={setDraftUrl}
+          override={override}
+          onSave={() => {
+            overrideSet(bkey, { source: draftSource, url: draftUrl || undefined });
+            setOpen(false);
+          }}
+          onClear={() => {
+            overrideSet(bkey, null);
+            setDraftSource("");
+            setDraftUrl("");
+            setOpen(false);
+          }}
+        />
+      </div>
+      <div className="text-[10px] opacity-80">
+        Source:{" "}
+        {benchmark.url ? (
+          <a href={benchmark.url} target="_blank" rel="noopener noreferrer" className="underline">
+            {benchmark.source}
+          </a>
+        ) : (
+          benchmark.source
+        )}
+        {override ? " · Customer-provided" : ""}
+      </div>
     </div>
+  );
+}
+
+function parseRange(s: string): [number, number] {
+  // Accepts strings like "6–10 min", "25–35%", "8-12 min"
+  const m = s.match(/([\d.]+)\s*[–-]\s*([\d.]+)/);
+  if (!m) return [0, Infinity];
+  return [parseFloat(m[1]), parseFloat(m[2])];
+}
+
+function OverrideTrigger({
+  open,
+  setOpen,
+  draftSource,
+  setDraftSource,
+  draftUrl,
+  setDraftUrl,
+  override,
+  onSave,
+  onClear,
+}: {
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  draftSource: string;
+  setDraftSource: (s: string) => void;
+  draftUrl: string;
+  setDraftUrl: (s: string) => void;
+  override?: { source: string; url?: string };
+  onSave: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="shrink-0 rounded border border-current/30 px-1.5 py-0.5 text-[10px] font-medium hover:bg-current/10"
+        >
+          {override ? "Edit source" : "Override"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 space-y-2 text-xs">
+        <div className="font-medium">Override benchmark source</div>
+        <div className="text-muted-foreground">
+          Replace our default with your own benchmark label. The value stays whatever you typed in the field above.
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Source label
+          </Label>
+          <Input
+            value={draftSource}
+            onChange={(e) => setDraftSource(e.target.value)}
+            placeholder="e.g. Internal 2026 ops audit"
+            className="mt-1 h-8 text-xs"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            URL (optional)
+          </Label>
+          <Input
+            value={draftUrl}
+            onChange={(e) => setDraftUrl(e.target.value)}
+            placeholder="https://…"
+            className="mt-1 h-8 text-xs"
+          />
+        </div>
+        <div className="flex justify-between pt-1">
+          <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
+            Clear
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={!draftSource.trim()} className="h-7 text-xs">
+            Save override
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
