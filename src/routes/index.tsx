@@ -821,6 +821,274 @@ function Index() {
     );
   };
 
+  /* ---------- Board summary (one-page) ---------- */
+  const exportBoardPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
+    let y = margin;
+
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("BOARD SUMMARY", margin, y);
+    y += 14;
+    doc.setTextColor(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(customerName || "Untitled Opportunity", margin, y);
+    y += 22;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`${advisor.useCases.join(" + ") || "—"} · ${currency} · Scenario: ${scenarioMode}`, margin, y);
+    y += 28;
+
+    // Hero savings number
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(46);
+    const hero = (hasAutomation || hasP2M) ? fmt.compactCurrency(total.savings) : `${workforce?.baselineRequiredAgents.toFixed(0) ?? "—"} FTE`;
+    doc.text(hero, margin, y);
+    y += 14;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(90);
+    doc.text((hasAutomation || hasP2M) ? "estimated annual savings" : "baseline required agents", margin, y);
+    y += 28;
+    doc.setTextColor(20);
+
+    // KPI row
+    if (hasAutomation || hasP2M) {
+      const kpis: [string, string][] = [
+        ["Annual Savings", fmt.compactCurrency(total.savings)],
+        ["ROI", `${total.roi.toFixed(1)}x`],
+        ["Cost Reduction", fmtPct(total.costReduction)],
+        ["Payback", fmtMonths(total.paybackMonths)],
+      ];
+      const colW = (pageW - margin * 2) / kpis.length;
+      kpis.forEach(([label, val], i) => {
+        const x = margin + i * colW;
+        doc.setDrawColor(220);
+        doc.rect(x, y, colW - 8, 60);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(label.toUpperCase(), x + 10, y + 16);
+        doc.setFontSize(15);
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(val, x + 10, y + 42);
+        doc.setFont("helvetica", "normal");
+      });
+      y += 80;
+    }
+
+    // What this means (one sentence)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("What this means", margin, y);
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const meansLines = doc.splitTextToSize(effectiveAdvisor.whatThisMeans || "—", pageW - margin * 2);
+    doc.text(meansLines.slice(0, 3), margin, y);
+    y += meansLines.slice(0, 3).length * 13 + 14;
+
+    // What to validate (top 2)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("What to validate", margin, y);
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    (advisor.toValidate.slice(0, 2).length ? advisor.toValidate.slice(0, 2) : ["All key inputs verified."]).forEach((t) => {
+      const ls = doc.splitTextToSize(`• ${t}`, pageW - margin * 2);
+      doc.text(ls, margin, y);
+      y += ls.length * 13 + 4;
+    });
+    y += 8;
+
+    // Confidence bar
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`Confidence: ${advisor.confidence.level} (${advisor.confidence.score10}/10)`, margin, y);
+    y += 10;
+    const barW = pageW - margin * 2;
+    const segW = barW / 10;
+    for (let i = 0; i < 10; i++) {
+      if (i < advisor.confidence.score10) {
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+      } else {
+        doc.setFillColor(230, 230, 230);
+      }
+      doc.rect(margin + i * segW + 2, y, segW - 4, 8, "F");
+    }
+    y += 24;
+
+    // Next step CTA at bottom
+    const ctaY = pageH - margin - 36;
+    doc.setDrawColor(accent[0], accent[1], accent[2]);
+    doc.setLineWidth(1);
+    doc.rect(margin, ctaY, pageW - margin * 2, 36);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.text("Recommended next step:", margin + 12, ctaY + 16);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40);
+    doc.text("Run a 90-day pilot with measured containment & per-channel AHT capture.", margin + 12, ctaY + 30);
+
+    doc.save(`Board-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+  };
+
+  /* ---------- Proposal generator (multi-section) ---------- */
+  const exportProposalPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
+    let y = margin;
+
+    const ensureSpace = (h: number) => {
+      if (y + h > pageH - margin) {
+        doc.addPage();
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+        doc.rect(0, 0, pageW, 6, "F");
+        y = margin;
+      }
+    };
+    const h1 = (t: string) => {
+      ensureSpace(40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(accent[0], accent[1], accent[2]);
+      doc.text(t, margin, y);
+      doc.setTextColor(20);
+      y += 22;
+    };
+    const h2 = (t: string) => {
+      ensureSpace(28);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(t, margin, y);
+      y += 16;
+    };
+    const para = (t: string) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(t, pageW - margin * 2);
+      ensureSpace(lines.length * 13 + 6);
+      doc.text(lines, margin, y);
+      y += lines.length * 13 + 6;
+    };
+    const bullets = (items: string[]) => items.forEach((it) => para(`• ${it}`));
+
+    // Cover
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("PROPOSAL", margin, y);
+    y += 16;
+    doc.setTextColor(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.text(customerName || "Untitled Opportunity", margin, y);
+    y += 30;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(90);
+    doc.text(`Conversational AI & Contact Center Outcomes · ${currency}`, margin, y);
+    y += 12;
+    doc.text(new Date().toLocaleDateString(), margin, y);
+    y += 30;
+    doc.setTextColor(20);
+
+    h1("1. Executive Summary");
+    para(effectiveAdvisor.headline);
+    if (effectiveAdvisor.whatThisMeans) para(effectiveAdvisor.whatThisMeans);
+
+    h1("2. Current State");
+    bullets(advisor.customerInputs.length ? advisor.customerInputs : ["No customer-provided inputs; all figures derived from benchmarks."]);
+
+    h1("3. Recommended Solution");
+    bullets(advisor.useCases.map((u) => `${u} — addressing scope per Step 01 selection.`));
+
+    h1("4. Financial Impact");
+    if (hasAutomation || hasP2M) {
+      const rows: [string, string][] = [
+        ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
+        ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
+        ["Annual Savings", fmt.fmtCurrency(total.savings)],
+        ["Software Investment", fmt.fmtCurrency(total.software)],
+        ["Net Benefit (Year 1)", fmt.fmtCurrency(total.netBenefit)],
+        ["ROI Multiple", `${total.roi.toFixed(1)}x`],
+        ["Payback", fmtMonths(total.paybackMonths)],
+      ];
+      rows.forEach(([k, v]) => {
+        ensureSpace(16);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(90);
+        doc.text(k, margin, y);
+        doc.setTextColor(20);
+        doc.text(v, pageW - margin, y, { align: "right" });
+        y += 16;
+      });
+      if (multiYear) {
+        y += 8;
+        h2("3-year outlook (Scenario: " + scenarioMode + ")");
+        ensureSpace(20);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        const cols = ["Year", "Savings", "Software", "Net", "Cumulative"];
+        const colW = (pageW - margin * 2) / cols.length;
+        cols.forEach((c, i) => doc.text(c, margin + i * colW, y));
+        y += 12;
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "normal");
+        multiYear.rows.forEach((r) => {
+          ensureSpace(14);
+          const vals = [`Y${r.year}`, fmt.compactCurrency(r.savings), fmt.compactCurrency(r.software), fmt.compactCurrency(r.net), fmt.compactCurrency(r.cumulative)];
+          vals.forEach((v, i) => doc.text(v, margin + i * colW, y));
+          y += 14;
+        });
+      }
+    } else {
+      para("This scope focuses on workforce sizing analysis; ROI is not modeled. Add a cost-reduction use case to quantify financial impact.");
+    }
+
+    h1("5. Implementation Roadmap");
+    bullets([
+      "Phase 1 (Weeks 1–4): Discovery, data validation, baseline confirmation.",
+      "Phase 2 (Weeks 5–10): Pilot deployment with measured containment.",
+      `Phase 3 (Weeks 11–${10 + Math.max(4, rampMonths * 4)}): Phased rollout, ramping over ${rampMonths} months.`,
+      "Phase 4 (Ongoing): KPI tracking, optimization, expansion to adjacent use cases.",
+    ]);
+
+    h1("6. Risk & Mitigation");
+    bullets(advisor.toValidate.length ? advisor.toValidate : ["No material risks identified — all inputs validated."]);
+
+    h1("7. Next Steps");
+    bullets([
+      "Confirm scope and success metrics with executive sponsor.",
+      "Schedule discovery sessions with WFM and operations leads.",
+      "Define pilot cohort and measurement plan.",
+      "Approve commercials and kick off Phase 1.",
+    ]);
+
+    doc.save(`Proposal-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+  };
+
+
+
   /* ---------- Snapshot / Save / Share / Comments ---------- */
   const snapshot = () => ({
     customerName, currency, useCases: Array.from(useCases),
