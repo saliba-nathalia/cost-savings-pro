@@ -1683,30 +1683,53 @@ function Index() {
               )}
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => {
-                    setStep2Open(true);
-                    setTimeout(
-                      () =>
-                        document
-                          .getElementById("step-02")
-                          ?.scrollIntoView({ behavior: "smooth" }),
-                      50,
-                    );
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-                <Button variant="outline" onClick={() => setPresentationOpen(true)}>
-                  Presentation View
-                </Button>
-                <Button onClick={exportPdf}>Download PDF</Button>
+                {editingSummary ? (
+                  <>
+                    <Button variant="ghost" onClick={resetEditing} className="gap-1.5">
+                      <X className="h-3.5 w-3.5" />
+                      Reset to generated
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingSummary(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveEditing} className="gap-1.5">
+                      <Check className="h-3.5 w-3.5" />
+                      Save changes
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setStep2Open(true);
+                        setTimeout(
+                          () =>
+                            document
+                              .getElementById("step-02")
+                              ?.scrollIntoView({ behavior: "smooth" }),
+                          50,
+                        );
+                      }}
+                    >
+                      Edit inputs
+                    </Button>
+                    <Button variant="outline" className="gap-1.5" onClick={startEditing}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit summary
+                    </Button>
+                    <Button variant="outline" onClick={() => setPresentationOpen(true)}>
+                      Presentation View
+                    </Button>
+                    <Button onClick={exportPdf}>Download PDF</Button>
+                  </>
+                )}
               </div>
             </Section>
-          )}
+            );
+          })()}
+
 
           {/* Comments */}
           {showStep3 && (
