@@ -561,28 +561,40 @@ function Index() {
     doc.text(headLines, margin, y);
     y += headLines.length * 18 + 12;
 
-    // KPIs
-    const kpis: [string, string][] = [
-      ["Annual Savings", fmt.compactCurrency(total.savings)],
-      ["ROI Multiple", `${total.roi.toFixed(1)}x`],
-      ["Cost Reduction", fmtPct(total.costReduction)],
-      ["Payback", fmtMonths(total.paybackMonths)],
-    ];
-    const colW = (pageW - margin * 2) / 4;
-    kpis.forEach(([label, val], i) => {
-      const x = margin + i * colW;
-      doc.setDrawColor(220);
-      doc.rect(x, y, colW - 8, 70);
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text(label.toUpperCase(), x + 10, y + 18);
-      doc.setFontSize(16);
-      doc.setTextColor(20);
-      doc.setFont("helvetica", "bold");
-      doc.text(val, x + 10, y + 48);
-      doc.setFont("helvetica", "normal");
-    });
-    y += 96;
+    // KPIs — financial only when an automation/P2M use case is selected
+    const hasFinancial = hasAutomation || hasP2M;
+    const kpis: [string, string][] = hasFinancial
+      ? [
+          ["Annual Savings", fmt.compactCurrency(total.savings)],
+          ["ROI Multiple", `${total.roi.toFixed(1)}x`],
+          ["Cost Reduction", fmtPct(total.costReduction)],
+          ["Payback", fmtMonths(total.paybackMonths)],
+        ]
+      : workforce
+      ? [
+          ["Productive Hours", fmtNumber(workforce.requiredHours)],
+          ["Baseline Agents", workforce.baselineRequiredAgents.toFixed(0)],
+          ["Post-Automation", workforce.postRequiredAgents.toFixed(0)],
+          ["FTE Freed", workforce.fteFreed.toFixed(0)],
+        ]
+      : [];
+    if (kpis.length) {
+      const colW = (pageW - margin * 2) / kpis.length;
+      kpis.forEach(([label, val], i) => {
+        const x = margin + i * colW;
+        doc.setDrawColor(220);
+        doc.rect(x, y, colW - 8, 70);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(label.toUpperCase(), x + 10, y + 18);
+        doc.setFontSize(16);
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(val, x + 10, y + 48);
+        doc.setFont("helvetica", "normal");
+      });
+      y += 96;
+    }
 
     const section = (title: string) => {
       if (y > doc.internal.pageSize.getHeight() - 120) {
