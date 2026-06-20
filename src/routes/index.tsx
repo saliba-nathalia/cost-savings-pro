@@ -1698,16 +1698,17 @@ function Index() {
                       <>
                         <BreakdownRow
                           k="Automation — Baseline"
-                          sub="Volume × Human Cost"
+                          sub={`${fmtNumber(automationCalc.volume)} interactions × ${fmt.fmtCurrency2(humanCost)} human cost = ${fmt.fmtCurrency(automationCalc.baseline)}`}
                           v={fmt.fmtCurrency(automationCalc.baseline)}
                         />
                         <BreakdownRow
                           k="Automation — Final Cost"
-                          sub={`${fmtNumber(automationCalc.aiResolved)} AI-resolved`}
+                          sub={`${fmtNumber(automationCalc.aiResolved)} × ${fmt.fmtCurrency2(aiCost)} (AI) + ${fmtNumber(automationCalc.remainingHuman)} × ${fmt.fmtCurrency2(humanCost)} (human) = ${fmt.fmtCurrency(automationCalc.finalCost)}`}
                           v={fmt.fmtCurrency(automationCalc.finalCost)}
                         />
                         <BreakdownRow
                           k="Automation — Savings"
+                          sub={`${fmt.fmtCurrency(automationCalc.baseline)} − ${fmt.fmtCurrency(automationCalc.finalCost)} = ${fmt.fmtCurrency(automationCalc.savings)}`}
                           v={fmt.fmtCurrency(automationCalc.savings)}
                           emphasis
                         />
@@ -1717,16 +1718,17 @@ function Index() {
                       <>
                         <BreakdownRow
                           k="Phone-to-Messaging — Baseline"
-                          sub="Phone volume × phone cost"
+                          sub={`${fmtNumber(p2mPhoneVolume)} phone calls × ${fmt.fmtCurrency2(p2mPhoneCost)} = ${fmt.fmtCurrency(p2mCalc.baseline)}`}
                           v={fmt.fmtCurrency(p2mCalc.baseline)}
                         />
                         <BreakdownRow
                           k="Phone-to-Messaging — Final Cost"
-                          sub={`${fmtNumber(p2mCalc.shifted)} shifted to messaging`}
+                          sub={`${fmtNumber(p2mPhoneVolume - p2mCalc.shifted)} × ${fmt.fmtCurrency2(p2mPhoneCost)} (phone) + ${fmtNumber(p2mCalc.shifted)} × ${fmt.fmtCurrency2(p2mMessagingCost)} (messaging) = ${fmt.fmtCurrency(p2mCalc.finalCost)}`}
                           v={fmt.fmtCurrency(p2mCalc.finalCost)}
                         />
                         <BreakdownRow
                           k="Phone-to-Messaging — Savings"
+                          sub={`${fmtNumber(p2mCalc.shifted)} shifted calls × (${fmt.fmtCurrency2(p2mPhoneCost)} − ${fmt.fmtCurrency2(p2mMessagingCost)}) = ${fmt.fmtCurrency(p2mCalc.savings)}`}
                           v={fmt.fmtCurrency(p2mCalc.savings)}
                           emphasis
                         />
@@ -1734,22 +1736,33 @@ function Index() {
                     )}
                     <BreakdownRow
                       k="Total Annual Savings"
+                      sub={
+                        hasAutomation && hasP2M && automationCalc && p2mCalc
+                          ? `${fmt.fmtCurrency(automationCalc.savings)} + ${fmt.fmtCurrency(p2mCalc.savings)} = ${fmt.fmtCurrency(total.savings)}`
+                          : `${fmt.fmtCurrency(total.baseline)} − ${fmt.fmtCurrency(total.finalCost)} = ${fmt.fmtCurrency(total.savings)}`
+                      }
                       v={fmt.fmtCurrency(total.savings)}
                       emphasis
                     />
                     <BreakdownRow
                       k="Total Software Investment"
+                      sub={
+                        hasAutomation && hasP2M
+                          ? `${fmt.fmtCurrency(automationCalc?.software ?? 0)} (automation) + ${fmt.fmtCurrency(p2mCalc?.software ?? 0)} (P2M) = ${fmt.fmtCurrency(total.software)}`
+                          : undefined
+                      }
                       v={fmt.fmtCurrency(total.software)}
                     />
                     <BreakdownRow
                       k="Net Benefit"
-                      sub="Savings − Software"
+                      sub={`${fmt.fmtCurrency(total.savings)} savings − ${fmt.fmtCurrency(total.software)} software = ${fmt.fmtCurrency(total.netBenefit)}`}
                       v={fmt.fmtCurrency(total.netBenefit)}
                       emphasis
                     />
                   </dl>
                 </SummaryBlock>
               )}
+
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
                 {editingSummary ? (
