@@ -1541,7 +1541,100 @@ function Index() {
                   </SelectContent>
                 </Select>
               </Field>
+              <Field
+                label="Industry"
+                tooltip="Sets the default benchmarks (AHT, containment, deflection) shown in Step 02."
+              >
+                <Select
+                  value={industry}
+                  onValueChange={(v) => setIndustry(v as IndustryKey)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="banking">Banking</SelectItem>
+                    <SelectItem value="insurance">Insurance</SelectItem>
+                    <SelectItem value="retail">Retail / E-commerce</SelectItem>
+                    <SelectItem value="travel">Travel & Hospitality</SelectItem>
+                    <SelectItem value="airlines">Airlines</SelectItem>
+                    <SelectItem value="utilities">Utilities</SelectItem>
+                    <SelectItem value="telco">Telco</SelectItem>
+                    <SelectItem value="gaming">Gaming & Betting</SelectItem>
+                    <SelectItem value="healthcare">Healthcare</SelectItem>
+                    <SelectItem value="other">Other…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {industry === "other" && (
+                  <>
+                    <Input
+                      value={customIndustry}
+                      onChange={(e) => setCustomIndustry(e.target.value)}
+                      placeholder="Industry name"
+                      className="mt-2"
+                    />
+                    <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+                      No benchmarks available for this industry. All AHT,
+                      containment, and deflection defaults will need to be
+                      validated with the customer.
+                    </div>
+                  </>
+                )}
+              </Field>
             </div>
+
+            {/* Benchmark sources disclosure */}
+            <details className="rounded-lg border border-border bg-secondary/30 px-4 py-3 text-xs">
+              <summary className="cursor-pointer font-medium">
+                Benchmark sources for {benchmarks?.label ?? (customIndustry || "your industry")}
+              </summary>
+              {benchmarks ? (
+                <ul className="mt-3 space-y-1.5 text-muted-foreground">
+                  {BENCHMARK_KEYS.map((k) => {
+                    const b = activeBenchmark(k);
+                    if (!b) return null;
+                    const overridden = !!benchmarkOverrides[k];
+                    return (
+                      <li key={k} className="flex flex-wrap gap-x-2">
+                        <span className="font-medium text-foreground">
+                          {BENCHMARK_LABELS[k]}:
+                        </span>
+                        <span>{b.range}</span>
+                        <span>·</span>
+                        <span>
+                          {b.url ? (
+                            <a
+                              href={b.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              {b.source}
+                            </a>
+                          ) : (
+                            b.source
+                          )}
+                          {overridden ? " (Customer-provided)" : ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="mt-3 text-muted-foreground">
+                  No public benchmarks for this industry. Use customer-provided
+                  values and add a source label via the "Override" button on
+                  each Step 02 benchmark.
+                </div>
+              )}
+              <div className="mt-3 text-[11px] text-muted-foreground">
+                Phone AHT figures: Supp 2026 AHT Benchmarks{" "}
+                (<a className="underline" href={SUPP_URL} target="_blank" rel="noopener noreferrer">supp.support</a>).
+                Containment/deflection: Gartner 2024 CX & Conversational AI predictions, Zendesk CX Trends 2025.
+                Rows tagged "Estimate" are interpolated where no industry-specific public median exists — please validate with customer data.
+              </div>
+            </details>
+
 
             <Field label="Use Cases (select one or more)">
               <div className="grid grid-cols-1 gap-3">
