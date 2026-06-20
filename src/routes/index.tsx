@@ -595,7 +595,7 @@ function Index() {
     // Headline
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    const headLines = doc.splitTextToSize(advisor.headline, pageW - margin * 2);
+    const headLines = doc.splitTextToSize(effectiveAdvisor.headline, pageW - margin * 2);
     doc.text(headLines, margin, y);
     y += headLines.length * 18 + 12;
 
