@@ -2753,6 +2753,41 @@ function ToggleCard({
   );
 }
 
+function BenchmarkBadge({
+  value,
+  low,
+  high,
+  label,
+  range,
+}: {
+  value: number;
+  low: number;
+  high: number;
+  label: string;
+  range: string;
+}) {
+  if (!isFinite(value) || value <= 0) return null;
+  const status: "below" | "in" | "above" =
+    value < low ? "below" : value > high ? "above" : "in";
+  const text =
+    status === "in"
+      ? `Within industry benchmark for ${label} (${range}).`
+      : status === "below"
+        ? `Below industry benchmark for ${label} (${range}) — verify this is realistic.`
+        : `Above industry benchmark for ${label} (${range}) — may indicate complexity or training opportunity.`;
+  const color =
+    status === "in"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+      : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+  return (
+    <div className={`mt-2 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
+      {text}
+    </div>
+  );
+}
+
+
+
 function UseCaseCard({
   active,
   title,
