@@ -230,12 +230,26 @@ function Index() {
   };
 
   /* ---------- Step gating ---------- */
-  const step01Complete =
-    customerName.trim().length > 0 && useCases.size > 0;
+  const step01Complete = useCases.size > 0;
   const step02Ready = step01Complete && dataSource !== null;
   const [step1Open, setStep1Open] = useState(true);
   const [step2Open, setStep2Open] = useState(false);
   const [presentationOpen, setPresentationOpen] = useState(false);
+
+  // Save-name dialog state
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDialogName, setSaveDialogName] = useState("");
+
+  // Executive Summary inline editing
+  const [editingSummary, setEditingSummary] = useState(false);
+  const [summaryOverride, setSummaryOverride] = useState<{
+    headline?: string;
+    whatWeFound?: string[];
+    whatThisMeans?: string;
+  }>({});
+  const [draftHeadline, setDraftHeadline] = useState("");
+  const [draftFound, setDraftFound] = useState("");
+  const [draftMeans, setDraftMeans] = useState("");
 
   const showStep3 = step02Ready;
 
