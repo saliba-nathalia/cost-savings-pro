@@ -1016,10 +1016,29 @@ function Index() {
                 {shareMsg || "Share"}
               </Button>
               {showStep3 && (
-                <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
-                  Download PDF
-                </Button>
+                <>
+                  <Select value={pdfTheme} onValueChange={(v) => setPdfTheme(v as PdfTheme)}>
+                    <SelectTrigger className="h-8 w-[140px] rounded-full text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minimal">Theme: Minimal</SelectItem>
+                      <SelectItem value="corporate">Theme: Corporate</SelectItem>
+                      <SelectItem value="warm">Theme: Warm</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
+                    Download PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportBoardPdf} className="rounded-full">
+                    Board summary
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportProposalPdf} className="rounded-full">
+                    Proposal
+                  </Button>
+                </>
               )}
+
             </div>
           </div>
         </header>
