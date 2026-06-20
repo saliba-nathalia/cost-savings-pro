@@ -224,10 +224,31 @@ function Index() {
   const [occupancy, setOccupancy] = useState(80);
   const [shrinkage, setShrinkage] = useState(20);
 
+  // Scenario, multi-year, theme
+  type ScenarioMode = "conservative" | "expected" | "aggressive";
+  const [scenarioMode, setScenarioMode] = useState<ScenarioMode>("expected");
+  const scenarioDelta =
+    scenarioMode === "conservative" ? -10 : scenarioMode === "aggressive" ? 10 : 0;
+  const [rampMonths, setRampMonths] = useState(3);
+  type PdfTheme = "minimal" | "corporate" | "warm";
+  const [pdfTheme, setPdfTheme] = useState<PdfTheme>("minimal");
+  const THEME_ACCENT: Record<PdfTheme, [number, number, number]> = {
+    minimal: [20, 20, 20],
+    corporate: [13, 71, 161],
+    warm: [183, 86, 33],
+  };
+
+  // Compare versions
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareWith, setCompareWith] = useState<string>("");
+
   const onSupportModelChange = (m: SupportModel) => {
     setSupportModel(m);
     setHourlyCost(HOURLY_DEFAULTS[m]);
   };
+
+  // Scenario-adjusted assumption values used in all financial calcs
+  const effContainment = Math.max(0, Math.min(100, 0));
 
   /* ---------- Step gating ---------- */
   const step01Complete = useCases.size > 0;
