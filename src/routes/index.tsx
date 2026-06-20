@@ -912,38 +912,22 @@ function Index() {
             onToggle={() => setStep1Open((o) => !o)}
             summary={
               step01Complete
-                ? `${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`
+                ? `${customerName || "Untitled"} · ${currency} · ${advisor.useCases.join(" + ")}`
                 : undefined
             }
             complete={step01Complete}
           >
-            <Field label="Customer Name">
+            <Field
+              label="Customer Name"
+              tooltip="Optional for running the calculator. Required when saving a scenario."
+            >
               <Input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Acme Corporation"
+                placeholder="Acme Corporation (optional)"
               />
             </Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field
-                label="Deal Stage"
-                tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
-              >
-                <Select value={dealStage} onValueChange={setDealStage}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
-                      (s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
               <Field label="Currency">
                 <Select
                   value={currency}
