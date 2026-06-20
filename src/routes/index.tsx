@@ -2803,6 +2803,88 @@ function BenchmarkBadge({
   );
 }
 
+function CompareDialog({
+  open,
+  onOpenChange,
+  currentSnapshot,
+  otherName,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  currentSnapshot: any;
+  otherName: string;
+}) {
+  const other = useMemo(() => {
+    if (!otherName) return null;
+    try {
+      const raw = localStorage.getItem(`outcomes-save-${otherName}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [otherName, open]);
+
+  const diffs = useMemo(() => {
+    if (!other) return [];
+    const keys = Array.from(
+      new Set([...Object.keys(currentSnapshot || {}), ...Object.keys(other || {})]),
+    );
+    const rows: { key: string; current: any; other: any }[] = [];
+    keys.forEach((k) => {
+      const a = (currentSnapshot as any)[k];
+      const b = (other as any)[k];
+      const sa = JSON.stringify(a);
+      const sb = JSON.stringify(b);
+      if (sa !== sb) rows.push({ key: k, current: a, other: b });
+    });
+    return rows;
+  }, [currentSnapshot, other]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Compare with “{otherName}”</DialogTitle>
+          <DialogDescription>
+            Side-by-side diff of inputs between your current scenario and the saved version.
+          </DialogDescription>
+        </DialogHeader>
+        {!other ? (
+          <div className="text-sm text-muted-foreground">Saved scenario not found.</div>
+        ) : diffs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No differences — inputs match exactly.</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2 font-medium">Input</th>
+                  <th className="py-2 font-medium">Current</th>
+                  <th className="py-2 font-medium">{otherName}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diffs.map((d) => (
+                  <tr key={d.key} className="border-b border-border/60">
+                    <td className="py-2 pr-3 font-medium text-foreground">{d.key}</td>
+                    <td className="py-2 pr-3">{String(JSON.stringify(d.current) ?? "—")}</td>
+                    <td className="py-2 text-muted-foreground">{String(JSON.stringify(d.other) ?? "—")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+
 
 
 function UseCaseCard({
