@@ -784,9 +784,10 @@ function Index() {
       if (raw) setSavedList(JSON.parse(raw));
     } catch { /* ignore */ }
   }, []);
-  const handleSave = () => {
+  const performSave = (rawName: string) => {
     try {
-      const name = customerName.trim() || "Untitled";
+      const name = rawName.trim();
+      if (!name) return false;
       const ts = Date.now();
       const key = `outcomes-save-${name}`;
       localStorage.setItem(key, JSON.stringify(snapshot()));
@@ -798,10 +799,26 @@ function Index() {
       setSavedList(next);
       setSaveMsg(`Saved “${name}”`);
       setTimeout(() => setSaveMsg(""), 2200);
+      return true;
     } catch {
       setSaveMsg("Could not save");
       setTimeout(() => setSaveMsg(""), 2200);
+      return false;
     }
+  };
+  const handleSave = () => {
+    if (customerName.trim()) {
+      performSave(customerName);
+    } else {
+      setSaveDialogName("");
+      setSaveDialogOpen(true);
+    }
+  };
+  const confirmSaveDialog = () => {
+    const name = saveDialogName.trim();
+    if (!name) return;
+    setCustomerName(name);
+    if (performSave(name)) setSaveDialogOpen(false);
   };
   const handleLoad = (name: string) => {
     try {
