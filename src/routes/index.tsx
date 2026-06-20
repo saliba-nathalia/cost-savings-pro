@@ -2021,10 +2021,37 @@ function Index() {
               </SummaryBlock>
 
               {/* Confidence + assumptions to validate (consolidated) */}
-              <SummaryBlock title={`Confidence: ${advisor.confidence.level}`}>
+              <SummaryBlock title={`Confidence: ${advisor.confidence.level} (${advisor.confidence.score10}/10)`}>
+                {/* Segmented meter */}
+                <div className="mb-3 flex gap-1">
+                  {advisor.confidence.segments.map((seg, i) => (
+                    <Tooltip key={i}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`h-2 flex-1 rounded-sm transition-colors ${
+                            seg.unlocked
+                              ? advisor.confidence.score10 >= 8
+                                ? "bg-emerald-500"
+                                : advisor.confidence.score10 >= 4
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500"
+                              : "bg-border"
+                          }`}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        <div className="font-medium">{seg.label}</div>
+                        <div className="mt-1 text-muted-foreground">
+                          {seg.unlocked ? "Unlocked." : seg.hint}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {advisor.confidence.explanation}
                 </p>
+
                 {advisor.assumedInputs.length > 0 && (
                   <div className="mt-4">
                     <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
