@@ -24,8 +24,16 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2 } from "lucide-react";
+import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2, TrendingDown, BarChart3, Lightbulb } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -146,7 +154,6 @@ function Index() {
   /* ---------- State ---------- */
   // Step 01
   const [customerName, setCustomerName] = useState("");
-  const [dealStage, setDealStage] = useState("Discovery");
   const [currency, setCurrency] = useState<CurrencyCode>("USD");
   const [useCases, setUseCases] = useState<Set<UseCaseKey>>(new Set());
 
@@ -223,12 +230,26 @@ function Index() {
   };
 
   /* ---------- Step gating ---------- */
-  const step01Complete =
-    customerName.trim().length > 0 && useCases.size > 0;
+  const step01Complete = useCases.size > 0;
   const step02Ready = step01Complete && dataSource !== null;
   const [step1Open, setStep1Open] = useState(true);
   const [step2Open, setStep2Open] = useState(false);
   const [presentationOpen, setPresentationOpen] = useState(false);
+
+  // Save-name dialog state
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveDialogName, setSaveDialogName] = useState("");
+
+  // Executive Summary inline editing
+  const [editingSummary, setEditingSummary] = useState(false);
+  const [summaryOverride, setSummaryOverride] = useState<{
+    headline?: string;
+    whatWeFound?: string[];
+    whatThisMeans?: string;
+  }>({});
+  const [draftHeadline, setDraftHeadline] = useState("");
+  const [draftFound, setDraftFound] = useState("");
+  const [draftMeans, setDraftMeans] = useState("");
 
   const showStep3 = step02Ready;
 
@@ -411,9 +432,15 @@ function Index() {
       );
     }
     if (hasStaffing && workforce) {
-      whatWeFound.push(
-        `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
-      );
+      if (hasAutomation || hasP2M) {
+        whatWeFound.push(
+          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
+        );
+      } else {
+        whatWeFound.push(
+          `Staffing model: about ${workforce.baselineRequiredAgents.toFixed(0)} agents needed to handle today's workload (~${fmtNumber(workforce.requiredHours)} productive hours/year).`,
+        );
+      }
     }
 
     // What this means
@@ -531,6 +558,17 @@ function Index() {
     fmt,
   ]);
 
+  // Apply user edits from the Executive Summary across PDF and Presentation View
+  const effectiveAdvisor = useMemo(
+    () => ({
+      ...advisor,
+      headline: summaryOverride.headline ?? advisor.headline,
+      whatWeFound: summaryOverride.whatWeFound ?? advisor.whatWeFound,
+      whatThisMeans: summaryOverride.whatThisMeans ?? advisor.whatThisMeans,
+    }),
+    [advisor, summaryOverride],
+  );
+
   /* ---------- PDF Export ---------- */
   const exportPdf = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -547,7 +585,7 @@ function Index() {
     doc.setFontSize(11);
     doc.setTextColor(90);
     doc.text(
-      `${customerName || "Untitled Opportunity"}  ·  ${dealStage}  ·  ${advisor.useCases.join(" + ") || "—"}  ·  ${currency}`,
+      `${customerName || "Untitled Opportunity"}  ·  ${advisor.useCases.join(" + ") || "—"}  ·  ${currency}`,
       margin,
       y,
     );
@@ -557,7 +595,7 @@ function Index() {
     // Headline
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    const headLines = doc.splitTextToSize(advisor.headline, pageW - margin * 2);
+    const headLines = doc.splitTextToSize(effectiveAdvisor.headline, pageW - margin * 2);
     doc.text(headLines, margin, y);
     y += headLines.length * 18 + 12;
 
@@ -623,14 +661,14 @@ function Index() {
       items.forEach((it) => writePara(`• ${it}`));
     };
 
-    if (advisor.whatWeFound.length) {
+    if (effectiveAdvisor.whatWeFound.length) {
       section("What we found");
-      writeBullets(advisor.whatWeFound);
+      writeBullets(effectiveAdvisor.whatWeFound);
       y += 4;
     }
-    if (advisor.whatThisMeans) {
+    if (effectiveAdvisor.whatThisMeans) {
       section("What this means");
-      writePara(advisor.whatThisMeans);
+      writePara(effectiveAdvisor.whatThisMeans);
       y += 4;
     }
     section("What we assumed");
@@ -682,7 +720,7 @@ function Index() {
 
   /* ---------- Snapshot / Save / Share / Comments ---------- */
   const snapshot = () => ({
-    customerName, dealStage, currency, useCases: Array.from(useCases),
+    customerName, currency, useCases: Array.from(useCases),
     dataSource, numberOfAgents, annualVolume, voiceVolume,
     phonePct, messagingPct, emailPct,
     costMode, costPerInteraction, supportModel, hourlyCost, aht,
@@ -697,7 +735,6 @@ function Index() {
       if (v !== undefined && v !== null) fn(v);
     };
     set(s.customerName, setCustomerName);
-    set(s.dealStage, setDealStage);
     set(s.currency, setCurrency);
     if (Array.isArray(s.useCases)) setUseCases(new Set(s.useCases));
     set(s.dataSource, setDataSource);
@@ -758,9 +795,10 @@ function Index() {
       if (raw) setSavedList(JSON.parse(raw));
     } catch { /* ignore */ }
   }, []);
-  const handleSave = () => {
+  const performSave = (rawName: string) => {
     try {
-      const name = customerName.trim() || "Untitled";
+      const name = rawName.trim();
+      if (!name) return false;
       const ts = Date.now();
       const key = `outcomes-save-${name}`;
       localStorage.setItem(key, JSON.stringify(snapshot()));
@@ -772,10 +810,26 @@ function Index() {
       setSavedList(next);
       setSaveMsg(`Saved “${name}”`);
       setTimeout(() => setSaveMsg(""), 2200);
+      return true;
     } catch {
       setSaveMsg("Could not save");
       setTimeout(() => setSaveMsg(""), 2200);
+      return false;
     }
+  };
+  const handleSave = () => {
+    if (customerName.trim()) {
+      performSave(customerName);
+    } else {
+      setSaveDialogName("");
+      setSaveDialogOpen(true);
+    }
+  };
+  const confirmSaveDialog = () => {
+    const name = saveDialogName.trim();
+    if (!name) return;
+    setCustomerName(name);
+    if (performSave(name)) setSaveDialogOpen(false);
   };
   const handleLoad = (name: string) => {
     try {
@@ -892,38 +946,22 @@ function Index() {
             onToggle={() => setStep1Open((o) => !o)}
             summary={
               step01Complete
-                ? `${customerName} · ${dealStage} · ${currency} · ${advisor.useCases.join(" + ")}`
+                ? `${customerName || "Untitled"} · ${currency} · ${advisor.useCases.join(" + ")}`
                 : undefined
             }
             complete={step01Complete}
           >
-            <Field label="Customer Name">
+            <Field
+              label="Customer Name"
+              tooltip="Optional for running the calculator. Required when saving a scenario."
+            >
               <Input
                 value={customerName}
                 onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Acme Corporation"
+                placeholder="Acme Corporation (optional)"
               />
             </Field>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field
-                label="Deal Stage"
-                tooltip="Metadata. It appears in the PDF export header. It does not affect any calculations."
-              >
-                <Select value={dealStage} onValueChange={setDealStage}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {["Discovery", "Qualification", "Evaluation", "Proposal"].map(
-                      (s) => (
-                        <SelectItem key={s} value={s}>
-                          {s}
-                        </SelectItem>
-                      ),
-                    )}
-                  </SelectContent>
-                </Select>
-              </Field>
               <Field label="Currency">
                 <Select
                   value={currency}
@@ -947,20 +985,26 @@ function Index() {
               <div className="grid grid-cols-1 gap-3">
                 <UseCaseCard
                   active={hasAutomation}
+                  icon={<TrendingDown className="h-4 w-4" />}
+                  category="Cost reduction"
                   title="Cost Savings / Automation"
                   desc="AI deflects interactions from human agents."
                   onClick={() => toggleUseCase("automation")}
                 />
                 <UseCaseCard
                   active={hasP2M}
+                  icon={<TrendingDown className="h-4 w-4" />}
+                  category="Cost reduction"
                   title="Cost Savings / Phone to Messaging"
                   desc="Shift volume from voice to lower-cost messaging."
                   onClick={() => toggleUseCase("phone_to_messaging")}
                 />
                 <UseCaseCard
                   active={hasStaffing}
+                  icon={<BarChart3 className="h-4 w-4" />}
+                  category="Analysis"
                   title="Workforce Sizing & Staffing Analysis"
-                  desc="Calculate current contact center staffing requirements using AHT, occupancy, and shrinkage."
+                  desc="Current-state contact center sizing using AHT, occupancy, and shrinkage. Not for ROI or savings — combine with other use cases to model efficiencies."
                   onClick={() => toggleUseCase("staffing")}
                 />
               </div>
@@ -1423,12 +1467,47 @@ function Index() {
           )}
 
           {/* Step 03 — Results */}
-          {showStep3 && (
+          {showStep3 && (() => {
+            const effHeadline = summaryOverride.headline ?? advisor.headline;
+            const effFound = summaryOverride.whatWeFound ?? advisor.whatWeFound;
+            const effMeans = summaryOverride.whatThisMeans ?? advisor.whatThisMeans;
+            const staffingOnly = hasStaffing && !hasAutomation && !hasP2M;
+            const startEditing = () => {
+              setDraftHeadline(effHeadline);
+              setDraftFound((effFound as string[]).join("\n"));
+              setDraftMeans(effMeans || "");
+              setEditingSummary(true);
+            };
+            const saveEditing = () => {
+              setSummaryOverride({
+                headline: draftHeadline.trim() || advisor.headline,
+                whatWeFound: draftFound
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+                whatThisMeans: draftMeans.trim(),
+              });
+              setEditingSummary(false);
+            };
+            const resetEditing = () => {
+              setSummaryOverride({});
+              setEditingSummary(false);
+            };
+            return (
             <Section title="Executive Summary" eyebrow="03">
               {/* Headline */}
-              <p className="font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
-                {advisor.headline}
-              </p>
+              {editingSummary ? (
+                <Textarea
+                  value={draftHeadline}
+                  onChange={(e) => setDraftHeadline(e.target.value)}
+                  rows={2}
+                  className="font-serif text-xl"
+                />
+              ) : (
+                <p className="font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
+                  {effHeadline}
+                </p>
+              )}
 
               {/* KPIs — financial metrics only when Automation or P2M is selected */}
               {(hasAutomation || hasP2M) && (
@@ -1450,27 +1529,60 @@ function Index() {
               )}
 
               {/* What we found */}
-              {advisor.whatWeFound.length > 0 && (
+              {(editingSummary || effFound.length > 0) && (
                 <SummaryBlock title="What we found">
-                  <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
-                    {advisor.whatWeFound.map((s, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {editingSummary ? (
+                    <Textarea
+                      value={draftFound}
+                      onChange={(e) => setDraftFound(e.target.value)}
+                      rows={6}
+                      placeholder="One bullet per line"
+                    />
+                  ) : (
+                    <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                      {effFound.map((s: string, i: number) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </SummaryBlock>
               )}
 
+              {/* Staffing-only callout */}
+              {staffingOnly && !editingSummary && (
+                <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
+                  <div className="text-sm leading-relaxed text-foreground/90">
+                    This use case is for current-state sizing only — it doesn't
+                    produce ROI or savings on its own. Add{" "}
+                    <span className="font-medium">Cost Savings / Automation</span>{" "}
+                    or{" "}
+                    <span className="font-medium">Phone to Messaging</span> to
+                    model the efficiencies and FTE capacity you could free up.
+                  </div>
+                </div>
+              )}
+
               {/* What this means */}
-              {advisor.whatThisMeans && (
+              {(editingSummary || effMeans) && (
                 <SummaryBlock title="What this means">
-                  <p className="text-sm leading-relaxed text-foreground/90">
-                    {advisor.whatThisMeans}
-                  </p>
+                  {editingSummary ? (
+                    <Textarea
+                      value={draftMeans}
+                      onChange={(e) => setDraftMeans(e.target.value)}
+                      rows={4}
+                    />
+                  ) : (
+                    <p className="text-sm leading-relaxed text-foreground/90">
+                      {effMeans}
+                    </p>
+                  )}
                 </SummaryBlock>
               )}
+
 
               {/* What we assumed */}
               <SummaryBlock title="What we assumed">
@@ -1599,30 +1711,53 @@ function Index() {
               )}
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => {
-                    setStep2Open(true);
-                    setTimeout(
-                      () =>
-                        document
-                          .getElementById("step-02")
-                          ?.scrollIntoView({ behavior: "smooth" }),
-                      50,
-                    );
-                  }}
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-                <Button variant="outline" onClick={() => setPresentationOpen(true)}>
-                  Presentation View
-                </Button>
-                <Button onClick={exportPdf}>Download PDF</Button>
+                {editingSummary ? (
+                  <>
+                    <Button variant="ghost" onClick={resetEditing} className="gap-1.5">
+                      <X className="h-3.5 w-3.5" />
+                      Reset to generated
+                    </Button>
+                    <Button variant="outline" onClick={() => setEditingSummary(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveEditing} className="gap-1.5">
+                      <Check className="h-3.5 w-3.5" />
+                      Save changes
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="ghost"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setStep2Open(true);
+                        setTimeout(
+                          () =>
+                            document
+                              .getElementById("step-02")
+                              ?.scrollIntoView({ behavior: "smooth" }),
+                          50,
+                        );
+                      }}
+                    >
+                      Edit inputs
+                    </Button>
+                    <Button variant="outline" className="gap-1.5" onClick={startEditing}>
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit summary
+                    </Button>
+                    <Button variant="outline" onClick={() => setPresentationOpen(true)}>
+                      Presentation View
+                    </Button>
+                    <Button onClick={exportPdf}>Download PDF</Button>
+                  </>
+                )}
               </div>
             </Section>
-          )}
+            );
+          })()}
+
 
           {/* Comments */}
           {showStep3 && (
@@ -1752,6 +1887,39 @@ function Index() {
           </div>
         </footer>
 
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Name this scenario</DialogTitle>
+              <DialogDescription>
+                A customer name is required to save. We'll use it as the
+                scenario's label and to scope comments.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="save-name">Customer Name</Label>
+              <Input
+                id="save-name"
+                autoFocus
+                value={saveDialogName}
+                onChange={(e) => setSaveDialogName(e.target.value)}
+                placeholder="Acme Corporation"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && saveDialogName.trim()) confirmSaveDialog();
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmSaveDialog} disabled={!saveDialogName.trim()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {presentationOpen && showStep3 && (
           <PresentationView
             onClose={() => setPresentationOpen(false)}
@@ -1767,9 +1935,8 @@ function Index() {
               );
             }}
             customerName={customerName}
-            dealStage={dealStage}
             currency={currency}
-            advisor={advisor}
+            advisor={effectiveAdvisor}
             total={total}
             fmt={fmt}
             setup={{
@@ -2079,11 +2246,15 @@ function UseCaseCard({
   title,
   desc,
   onClick,
+  icon,
+  category,
 }: {
   active: boolean;
   title: string;
   desc: string;
   onClick: () => void;
+  icon?: React.ReactNode;
+  category?: string;
 }) {
   return (
     <button
@@ -2096,7 +2267,22 @@ function UseCaseCard({
       }`}
     >
       <Checkbox checked={active} className="mt-0.5" />
-      <div>
+      {icon && (
+        <div
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+            active ? "bg-foreground text-background" : "bg-secondary text-foreground"
+          }`}
+          aria-hidden
+        >
+          {icon}
+        </div>
+      )}
+      <div className="flex-1">
+        {category && (
+          <div className="text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            {category}
+          </div>
+        )}
         <div className="text-sm font-medium text-foreground">{title}</div>
         <div className="mt-1 text-xs text-muted-foreground">{desc}</div>
       </div>
@@ -2194,7 +2380,6 @@ function PresentationView({
   onClose,
   onEdit,
   customerName,
-  dealStage,
   currency,
   advisor,
   total,
@@ -2208,7 +2393,6 @@ function PresentationView({
   onClose: () => void;
   onEdit: () => void;
   customerName: string;
-  dealStage: string;
   currency: string;
   advisor: any;
   total: any;
@@ -2224,11 +2408,10 @@ function PresentationView({
   const buildPlainText = () => {
     const lines: string[] = [];
     lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
-    lines.push(`${dealStage} · ${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
+    lines.push(`${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
     lines.push("");
     lines.push("OPPORTUNITY SETUP");
     lines.push(`• Customer: ${customerName || "Untitled"}`);
-    lines.push(`• Deal stage: ${dealStage}`);
     lines.push(`• Currency: ${currency}`);
     lines.push(`• Use cases: ${setup.useCaseLabels.join(", ") || "—"}`);
     lines.push(`• Data source: ${setup.dataSource === "actual" ? "Actual customer data" : setup.dataSource === "assumption" ? "Assumptions / benchmarks" : "—"}`);
@@ -2355,7 +2538,7 @@ function PresentationView({
             {customerName || "Untitled Opportunity"}
           </h2>
           <div className="mt-4 text-sm text-muted-foreground">
-            {dealStage} · {currency} · {setup.useCaseLabels.join(" + ") || "—"}
+            {currency} · {setup.useCaseLabels.join(" + ") || "—"}
           </div>
         </Slide>
 
@@ -2366,7 +2549,6 @@ function PresentationView({
           </div>
           <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-1 md:grid-cols-2">
             <InputRow k="Customer" v={customerName || "—"} />
-            <InputRow k="Deal stage" v={dealStage} />
             <InputRow k="Currency" v={currency} />
             <InputRow k="Use cases" v={setup.useCaseLabels.join(", ") || "—"} />
             <InputRow
