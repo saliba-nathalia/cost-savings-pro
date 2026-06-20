@@ -2355,7 +2355,7 @@ function PresentationView({
             {customerName || "Untitled Opportunity"}
           </h2>
           <div className="mt-4 text-sm text-muted-foreground">
-            {dealStage} · {currency} · {setup.useCaseLabels.join(" + ") || "—"}
+            {currency} · {setup.useCaseLabels.join(" + ") || "—"}
           </div>
         </Slide>
 
@@ -2366,7 +2366,6 @@ function PresentationView({
           </div>
           <div className="mt-6 grid grid-cols-1 gap-x-10 gap-y-1 md:grid-cols-2">
             <InputRow k="Customer" v={customerName || "—"} />
-            <InputRow k="Deal stage" v={dealStage} />
             <InputRow k="Currency" v={currency} />
             <InputRow k="Use cases" v={setup.useCaseLabels.join(", ") || "—"} />
             <InputRow
