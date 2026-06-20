@@ -2197,7 +2197,6 @@ function PresentationView({
   onClose,
   onEdit,
   customerName,
-  dealStage,
   currency,
   advisor,
   total,
@@ -2211,7 +2210,6 @@ function PresentationView({
   onClose: () => void;
   onEdit: () => void;
   customerName: string;
-  dealStage: string;
   currency: string;
   advisor: any;
   total: any;
