@@ -561,28 +561,40 @@ function Index() {
     doc.text(headLines, margin, y);
     y += headLines.length * 18 + 12;
 
-    // KPIs
-    const kpis: [string, string][] = [
-      ["Annual Savings", fmt.compactCurrency(total.savings)],
-      ["ROI Multiple", `${total.roi.toFixed(1)}x`],
-      ["Cost Reduction", fmtPct(total.costReduction)],
-      ["Payback", fmtMonths(total.paybackMonths)],
-    ];
-    const colW = (pageW - margin * 2) / 4;
-    kpis.forEach(([label, val], i) => {
-      const x = margin + i * colW;
-      doc.setDrawColor(220);
-      doc.rect(x, y, colW - 8, 70);
-      doc.setFontSize(9);
-      doc.setTextColor(120);
-      doc.text(label.toUpperCase(), x + 10, y + 18);
-      doc.setFontSize(16);
-      doc.setTextColor(20);
-      doc.setFont("helvetica", "bold");
-      doc.text(val, x + 10, y + 48);
-      doc.setFont("helvetica", "normal");
-    });
-    y += 96;
+    // KPIs — financial only when an automation/P2M use case is selected
+    const hasFinancial = hasAutomation || hasP2M;
+    const kpis: [string, string][] = hasFinancial
+      ? [
+          ["Annual Savings", fmt.compactCurrency(total.savings)],
+          ["ROI Multiple", `${total.roi.toFixed(1)}x`],
+          ["Cost Reduction", fmtPct(total.costReduction)],
+          ["Payback", fmtMonths(total.paybackMonths)],
+        ]
+      : workforce
+      ? [
+          ["Productive Hours", fmtNumber(workforce.requiredHours)],
+          ["Baseline Agents", workforce.baselineRequiredAgents.toFixed(0)],
+          ["Post-Automation", workforce.postRequiredAgents.toFixed(0)],
+          ["FTE Freed", workforce.fteFreed.toFixed(0)],
+        ]
+      : [];
+    if (kpis.length) {
+      const colW = (pageW - margin * 2) / kpis.length;
+      kpis.forEach(([label, val], i) => {
+        const x = margin + i * colW;
+        doc.setDrawColor(220);
+        doc.rect(x, y, colW - 8, 70);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        doc.text(label.toUpperCase(), x + 10, y + 18);
+        doc.setFontSize(16);
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(val, x + 10, y + 48);
+        doc.setFont("helvetica", "normal");
+      });
+      y += 96;
+    }
 
     const section = (title: string) => {
       if (y > doc.internal.pageSize.getHeight() - 120) {
@@ -645,21 +657,23 @@ function Index() {
       doc.addPage();
       y = margin;
     }
-    section("Financial Breakdown");
-    const rows: [string, string][] = [
-      ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
-      ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
-      ["Total Annual Savings", fmt.fmtCurrency(total.savings)],
-      ["Total Software Investment", fmt.fmtCurrency(total.software)],
-      ["Net Benefit", fmt.fmtCurrency(total.netBenefit)],
-    ];
-    rows.forEach(([k, v]) => {
-      doc.setTextColor(90);
-      doc.text(k, margin, y);
-      doc.setTextColor(20);
-      doc.text(v, pageW - margin, y, { align: "right" });
-      y += 16;
-    });
+    if (hasFinancial) {
+      section("Financial Breakdown");
+      const rows: [string, string][] = [
+        ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
+        ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
+        ["Total Annual Savings", fmt.fmtCurrency(total.savings)],
+        ["Total Software Investment", fmt.fmtCurrency(total.software)],
+        ["Net Benefit", fmt.fmtCurrency(total.netBenefit)],
+      ];
+      rows.forEach(([k, v]) => {
+        doc.setTextColor(90);
+        doc.text(k, margin, y);
+        doc.setTextColor(20);
+        doc.text(v, pageW - margin, y, { align: "right" });
+        y += 16;
+      });
+    }
 
     doc.save(
       `Outcomes-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`,
@@ -1416,22 +1430,24 @@ function Index() {
                 {advisor.headline}
               </p>
 
-              {/* KPIs */}
-              <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
-                <Kpi
-                  label="Annual Savings"
-                  value={fmt.compactCurrency(total.savings)}
-                />
-                <Kpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
-                <Kpi
-                  label="Cost Reduction"
-                  value={fmtPct(total.costReduction)}
-                />
-                <Kpi
-                  label="Payback Period"
-                  value={fmtMonths(total.paybackMonths)}
-                />
-              </div>
+              {/* KPIs — financial metrics only when Automation or P2M is selected */}
+              {(hasAutomation || hasP2M) && (
+                <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
+                  <Kpi
+                    label="Annual Savings"
+                    value={fmt.compactCurrency(total.savings)}
+                  />
+                  <Kpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+                  <Kpi
+                    label="Cost Reduction"
+                    value={fmtPct(total.costReduction)}
+                  />
+                  <Kpi
+                    label="Payback Period"
+                    value={fmtMonths(total.paybackMonths)}
+                  />
+                </div>
+              )}
 
               {/* What we found */}
               {advisor.whatWeFound.length > 0 && (
@@ -2245,12 +2261,15 @@ function PresentationView({
     lines.push("HEADLINE");
     lines.push(advisor.headline);
     lines.push("");
-    lines.push("KEY OUTCOMES");
-    lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
-    lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
-    lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
-    lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
-    lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
+    const hasFinancial = !!(automationCalc || p2mCalc);
+    if (hasFinancial) {
+      lines.push("KEY OUTCOMES");
+      lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
+      lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
+      lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
+      lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+      lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
+    }
     if (advisor.whatWeFound.length) {
       lines.push("");
       lines.push("WHAT WE FOUND");
@@ -2437,12 +2456,14 @@ function PresentationView({
           <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
             {advisor.headline}
           </p>
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
-            <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
-            <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
-            <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
-          </div>
+          {(automationCalc || p2mCalc) && (
+            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
+              <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+              <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
+              <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
+            </div>
+          )}
         </Slide>
 
         {/* Slide — What we found */}
