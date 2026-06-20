@@ -1620,50 +1620,55 @@ function Index() {
               )}
 
 
-              {/* What we assumed */}
-              <SummaryBlock title="What we assumed">
-                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <div>
-                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      From your data
-                    </div>
-                    {advisor.customerInputs.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm text-foreground/90">
-                        {advisor.customerInputs.map((s, i) => (
-                          <li key={i}>· {s}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        No customer-provided inputs.
-                      </div>
-                    )}
+              {/* What we used from the customer */}
+              <SummaryBlock title="What we used from your data">
+                {advisor.customerInputs.length > 0 ? (
+                  <ul className="space-y-1.5 text-sm text-foreground/90">
+                    {advisor.customerInputs.map((s, i) => (
+                      <li key={i}>· {s}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    No customer-provided inputs — every number below is an assumption.
                   </div>
-                  <div>
-                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                      Assumed defaults
-                    </div>
-                    {advisor.assumedInputs.length > 0 ? (
-                      <ul className="space-y-1.5 text-sm text-foreground/90">
-                        {advisor.assumedInputs.map((s, i) => (
-                          <li key={i}>· {s}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="text-sm text-muted-foreground">
-                        None — all inputs are customer-provided.
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </SummaryBlock>
 
-              {/* Confidence */}
+              {/* Confidence + assumptions to validate (consolidated) */}
               <SummaryBlock title={`Confidence: ${advisor.confidence.level}`}>
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {advisor.confidence.explanation}
                 </p>
+                {advisor.assumedInputs.length > 0 && (
+                  <div className="mt-4">
+                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      Currently assumed
+                    </div>
+                    <ul className="space-y-1.5 text-sm text-foreground/90">
+                      {advisor.assumedInputs.map((s, i) => (
+                        <li key={i}>· {s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {advisor.toValidate.length > 0 && (
+                  <div className="mt-4 rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+                    <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                      To increase confidence, validate
+                    </div>
+                    <ul className="space-y-1.5 text-sm leading-relaxed text-foreground/90">
+                      {advisor.toValidate.map((s, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </SummaryBlock>
+
 
               {/* Workforce extras when staffing */}
               {hasStaffing && workforce && (
