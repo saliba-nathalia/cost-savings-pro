@@ -1326,6 +1326,9 @@ function Index() {
     set(s.scenarioMode, setScenarioMode);
     set(s.rampMonths, setRampMonths);
     set(s.pdfTheme, setPdfTheme);
+    set(s.industry, setIndustry);
+    set(s.customIndustry, setCustomIndustry);
+    set(s.benchmarkOverrides, setBenchmarkOverrides);
     if (s.customerName && s.useCases?.length) {
 
       setStep1Open(false);
