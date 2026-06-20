@@ -2225,11 +2225,10 @@ function PresentationView({
   const buildPlainText = () => {
     const lines: string[] = [];
     lines.push(`${customerName || "Untitled Opportunity"} — Outcomes Summary`);
-    lines.push(`${dealStage} · ${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
+    lines.push(`${currency} · ${setup.useCaseLabels.join(" + ") || "—"}`);
     lines.push("");
     lines.push("OPPORTUNITY SETUP");
     lines.push(`• Customer: ${customerName || "Untitled"}`);
-    lines.push(`• Deal stage: ${dealStage}`);
     lines.push(`• Currency: ${currency}`);
     lines.push(`• Use cases: ${setup.useCaseLabels.join(", ") || "—"}`);
     lines.push(`• Data source: ${setup.dataSource === "actual" ? "Actual customer data" : setup.dataSource === "assumption" ? "Assumptions / benchmarks" : "—"}`);
