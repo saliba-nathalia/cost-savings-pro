@@ -558,6 +558,17 @@ function Index() {
     fmt,
   ]);
 
+  // Apply user edits from the Executive Summary across PDF and Presentation View
+  const effectiveAdvisor = useMemo(
+    () => ({
+      ...advisor,
+      headline: summaryOverride.headline ?? advisor.headline,
+      whatWeFound: summaryOverride.whatWeFound ?? advisor.whatWeFound,
+      whatThisMeans: summaryOverride.whatThisMeans ?? advisor.whatThisMeans,
+    }),
+    [advisor, summaryOverride],
+  );
+
   /* ---------- PDF Export ---------- */
   const exportPdf = () => {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
