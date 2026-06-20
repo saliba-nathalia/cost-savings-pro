@@ -2440,6 +2440,15 @@ function Index() {
           </DialogContent>
         </Dialog>
 
+        <CompareDialog
+          open={compareOpen}
+          onOpenChange={setCompareOpen}
+          currentSnapshot={snapshot()}
+          otherName={compareWith}
+        />
+
+
+
         {presentationOpen && showStep3 && (
           <PresentationView
             onClose={() => setPresentationOpen(false)}
