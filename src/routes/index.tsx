@@ -572,22 +572,28 @@ function Index() {
       }
     }
 
-    // Confidence
-    let score = 0;
-    if (dataSource === "actual") score += 2;
-    else score -= 1;
+    // Confidence — visual segmented score 0-10
+    type Segment = { label: string; unlocked: boolean; hint: string };
+    const segments: Segment[] = [];
+    segments.push({ label: "Customer data", unlocked: dataSource === "actual", hint: "Switch Step 02 to 'Yes, use customer data'." });
+    segments.push({ label: "Customer data (vol/cost)", unlocked: dataSource === "actual", hint: "Enter measured volumes and unit economics in Step 02." });
     if (hasAutomation) {
-      if (containmentMode === "manual") score += 2;
-      else score -= 1;
+      segments.push({ label: "Known containment", unlocked: containmentMode === "manual", hint: "Enter a measured containment rate instead of using the guided estimate." });
+      segments.push({ label: "Containment realistic (<=80%)", unlocked: containment <= 80, hint: "Containment above 80% is uncommon — pressure-test with pilot data." });
     }
     if (hasStaffing) {
-      if (useChannelAht) score += 2;
-      if (channelValid) score += 1;
-      if (occupancy !== 80 || shrinkage !== 20) score += 1;
+      segments.push({ label: "Per-channel AHTs", unlocked: useChannelAht, hint: "Switch to per-channel AHTs (voice / email / messaging)." });
+      segments.push({ label: "Channel mix totals 100%", unlocked: channelValid, hint: "Adjust channel mix percentages to total 100%." });
+      segments.push({ label: "Custom occupancy/shrinkage", unlocked: occupancy !== 80 || shrinkage !== 20, hint: "Replace default 80/20 with the customer's WFM figures." });
     }
-    if (numberOfAgents > 0) score += 1;
+    segments.push({ label: "Headcount entered", unlocked: numberOfAgents > 0, hint: "Enter the current number of agents." });
+    // Pad to exactly 10 segments
+    while (segments.length < 10) segments.push({ label: "Bonus signal", unlocked: false, hint: "Add another use case or refine inputs to unlock." });
+    const totalSegments = segments.length;
+    const unlockedCount = segments.filter((s) => s.unlocked).length;
+    const score10 = Math.round((unlockedCount / totalSegments) * 10);
     const level: "High" | "Medium" | "Low" =
-      score >= 5 ? "High" : score >= 2 ? "Medium" : "Low";
+      score10 >= 8 ? "High" : score10 >= 4 ? "Medium" : "Low";
     const confidenceExplanation =
       level === "High"
         ? toValidate.length === 0
@@ -606,8 +612,10 @@ function Index() {
       customerInputs,
       assumedInputs,
       toValidate,
-      confidence: { level, explanation: confidenceExplanation },
+      confidence: { level, explanation: confidenceExplanation, score10, segments },
     };
+
+
 
   }, [
     useCases,
