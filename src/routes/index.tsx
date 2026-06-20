@@ -553,8 +553,10 @@ function Index() {
       whatThisMeans,
       customerInputs,
       assumedInputs,
+      toValidate,
       confidence: { level, explanation: confidenceExplanation },
     };
+
   }, [
     useCases,
     total,
