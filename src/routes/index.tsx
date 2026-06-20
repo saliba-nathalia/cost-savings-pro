@@ -1000,6 +1000,84 @@ function Index() {
       });
     }
 
+    // Sources & Assumptions appendix
+    doc.addPage();
+    y = margin;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.setTextColor(20);
+    doc.text("Sources & Assumptions", margin, y);
+    y += 22;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(90);
+    const industryLabel =
+      benchmarks?.label ?? (customIndustry || "Industry not specified");
+    doc.text(`Industry: ${industryLabel}`, margin, y);
+    y += 18;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20);
+    doc.text("Benchmarks used", margin, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    if (benchmarks) {
+      BENCHMARK_KEYS.forEach((k) => {
+        const b = activeBenchmark(k);
+        if (!b) return;
+        const overridden = benchmarkOverrides[k] ? " [Customer-provided]" : "";
+        const line = `${BENCHMARK_LABELS[k]}: ${b.range} — ${b.source}${overridden}`;
+        const wrapped = doc.splitTextToSize(line, pageW - margin * 2);
+        if (y + wrapped.length * 12 > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.setTextColor(20);
+        doc.text(wrapped, margin, y);
+        y += wrapped.length * 12 + 4;
+      });
+    } else {
+      const note = doc.splitTextToSize(
+        "No public benchmarks available for the selected industry. All AHT, containment, and deflection values should be validated with customer data.",
+        pageW - margin * 2,
+      );
+      doc.text(note, margin, y);
+      y += note.length * 12 + 4;
+    }
+
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Primary references", margin, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    const refs = [
+      "• Supp 2026 — AHT Benchmarks by Industry: https://supp.support/blog/average-handle-time-benchmarks",
+      "• Gartner — Predicts 2024: CX & Conversational AI (chatbot Tier-1 containment outlook)",
+      "• Zendesk CX Trends 2025 — Self-service deflection benchmarks",
+    ];
+    refs.forEach((r) => {
+      const w = doc.splitTextToSize(r, pageW - margin * 2);
+      if (y + w.length * 12 > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(w, margin, y);
+      y += w.length * 12 + 2;
+    });
+
+    y += 10;
+    const disclaimer = doc.splitTextToSize(
+      "Rows tagged 'Estimate' are interpolated where no industry-specific public median exists. Customer-provided rows reflect benchmarks supplied directly by the customer and override our defaults in this report.",
+      pageW - margin * 2,
+    );
+    doc.setTextColor(120);
+    doc.setFontSize(8);
+    doc.text(disclaimer, margin, y);
+
     doc.save(
       `Outcomes-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`,
     );
