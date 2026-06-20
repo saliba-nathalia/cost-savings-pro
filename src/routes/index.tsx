@@ -568,7 +568,7 @@ function Index() {
     doc.setFontSize(11);
     doc.setTextColor(90);
     doc.text(
-      `${customerName || "Untitled Opportunity"}  ·  ${dealStage}  ·  ${advisor.useCases.join(" + ") || "—"}  ·  ${currency}`,
+      `${customerName || "Untitled Opportunity"}  ·  ${advisor.useCases.join(" + ") || "—"}  ·  ${currency}`,
       margin,
       y,
     );
