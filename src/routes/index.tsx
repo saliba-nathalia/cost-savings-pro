@@ -2175,6 +2175,44 @@ function Index() {
                 </SummaryBlock>
               )}
 
+              {/* Multi-year outlook */}
+              {multiYear && (
+                <SummaryBlock title="3-year outlook">
+                  <div className="text-[11px] text-muted-foreground mb-3">
+                    Year 1 prorated by ramp-up ({rampMonths} mo, {(multiYear.rows[0].attainment * 100).toFixed(0)}% attainment). Years 2–3 at full run-rate. Software cost in Year 1 only.
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm tabular-nums">
+                      <thead>
+                        <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                          <th className="py-2 font-medium">Year</th>
+                          <th className="py-2 font-medium">Savings</th>
+                          <th className="py-2 font-medium">Software</th>
+                          <th className="py-2 font-medium">Net</th>
+                          <th className="py-2 text-right font-medium">Cumulative</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multiYear.rows.map((r) => (
+                          <tr key={r.year} className="border-b border-border/60">
+                            <td className="py-2.5">Year {r.year}</td>
+                            <td className="py-2.5">{fmt.compactCurrency(r.savings)}</td>
+                            <td className="py-2.5 text-muted-foreground">{r.software > 0 ? fmt.compactCurrency(r.software) : "—"}</td>
+                            <td className="py-2.5">{fmt.compactCurrency(r.net)}</td>
+                            <td className="py-2.5 text-right font-medium">{fmt.compactCurrency(r.cumulative)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    3-year cumulative ROI: <span className="font-medium text-foreground">{multiYear.cumulativeRoi.toFixed(1)}×</span>
+                  </div>
+                </SummaryBlock>
+              )}
+
+
+
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
                 {editingSummary ? (
