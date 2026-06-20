@@ -1951,38 +1951,62 @@ function Index() {
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                             <Field
                               label="Voice AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.voice}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("voiceAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={voiceAht}
                                 onChange={setVoiceAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("voiceAht")}
+                                value={voiceAht}
+                                bkey="voiceAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.voiceAht}
+                              />
                             </Field>
                             <Field
                               label="Email AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.email}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("emailAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={emailAht}
                                 onChange={setEmailAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("emailAht")}
+                                value={emailAht}
+                                bkey="emailAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.emailAht}
+                              />
                             </Field>
                             <Field
                               label="Messaging AHT (min)"
-                              tooltip={`Industry benchmark: ${BENCHMARK_RANGE.messaging}.`}
+                              tooltip={`Industry benchmark: ${activeBenchmark("messagingAht")?.range ?? "no benchmark for this industry"}.`}
                             >
                               <NumberInput
                                 value={messagingAht}
                                 onChange={setMessagingAht}
                                 step={0.1}
                               />
+                              <BenchmarkBadge
+                                benchmark={activeBenchmark("messagingAht")}
+                                value={messagingAht}
+                                bkey="messagingAht"
+                                overrideSet={setBenchmarkOverride}
+                                override={benchmarkOverrides.messagingAht}
+                              />
                             </Field>
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            Defaults are industry benchmarks. Override with
-                            customer-specific values for highest accuracy.
+                            Defaults are industry benchmarks for{" "}
+                            <span className="font-medium text-foreground">
+                              {benchmarks?.label ?? customIndustry || "your industry"}
+                            </span>
+                            . Override with customer-specific values for highest accuracy.
                           </div>
                         </>
                       ) : (
@@ -1993,11 +2017,11 @@ function Index() {
                             step={0.1}
                           />
                           <BenchmarkBadge
+                            benchmark={activeBenchmark("voiceAht")}
                             value={aht}
-                            low={6}
-                            high={10}
-                            label="voice AHT"
-                            range={BENCHMARK_RANGE.voice}
+                            bkey="voiceAht"
+                            overrideSet={setBenchmarkOverride}
+                            override={benchmarkOverrides.voiceAht}
                           />
                         </Field>
                       )}
