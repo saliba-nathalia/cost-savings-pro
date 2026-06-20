@@ -224,10 +224,31 @@ function Index() {
   const [occupancy, setOccupancy] = useState(80);
   const [shrinkage, setShrinkage] = useState(20);
 
+  // Scenario, multi-year, theme
+  type ScenarioMode = "conservative" | "expected" | "aggressive";
+  const [scenarioMode, setScenarioMode] = useState<ScenarioMode>("expected");
+  const scenarioDelta =
+    scenarioMode === "conservative" ? -10 : scenarioMode === "aggressive" ? 10 : 0;
+  const [rampMonths, setRampMonths] = useState(3);
+  type PdfTheme = "minimal" | "corporate" | "warm";
+  const [pdfTheme, setPdfTheme] = useState<PdfTheme>("minimal");
+  const THEME_ACCENT: Record<PdfTheme, [number, number, number]> = {
+    minimal: [20, 20, 20],
+    corporate: [13, 71, 161],
+    warm: [183, 86, 33],
+  };
+
+  // Compare versions
+  const [compareOpen, setCompareOpen] = useState(false);
+  const [compareWith, setCompareWith] = useState<string>("");
+
   const onSupportModelChange = (m: SupportModel) => {
     setSupportModel(m);
     setHourlyCost(HOURLY_DEFAULTS[m]);
   };
+
+
+
 
   /* ---------- Step gating ---------- */
   const step01Complete = useCases.size > 0;
@@ -269,7 +290,8 @@ function Index() {
   const automationCalc = useMemo(() => {
     if (!hasAutomation) return null;
     const volume = annualVolume;
-    const rate = Math.min(containment, 100) / 100;
+    const adjContainment = Math.max(0, Math.min(100, containment + scenarioDelta));
+    const rate = adjContainment / 100;
     const baseline = volume * humanCost;
     const aiResolved = volume * rate;
     const remainingHuman = volume - aiResolved;
@@ -280,6 +302,7 @@ function Index() {
     return {
       volume,
       rate,
+      adjContainment,
       baseline,
       aiResolved,
       remainingHuman,
@@ -289,23 +312,26 @@ function Index() {
       savings,
       software: softwareInvestment,
     };
-  }, [hasAutomation, annualVolume, containment, humanCost, aiCost, softwareInvestment]);
+  }, [hasAutomation, annualVolume, containment, scenarioDelta, humanCost, aiCost, softwareInvestment]);
 
   const p2mCalc = useMemo(() => {
     if (!hasP2M) return null;
-    const shifted = p2mPhoneVolume * (p2mDeflection / 100);
+    const adjDeflection = Math.max(0, Math.min(100, p2mDeflection + scenarioDelta));
+    const shifted = p2mPhoneVolume * (adjDeflection / 100);
     const baseline = p2mPhoneVolume * p2mPhoneCost;
     const finalCost =
       (p2mPhoneVolume - shifted) * p2mPhoneCost + shifted * p2mMessagingCost;
     const savings = baseline - finalCost;
     return {
       shifted,
+      adjDeflection,
       baseline,
       finalCost,
       savings,
       software: p2mSoftware,
     };
-  }, [hasP2M, p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
+  }, [hasP2M, p2mPhoneVolume, p2mDeflection, scenarioDelta, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
+
 
   const workforce = useMemo(() => {
     if (!hasStaffing) return null;
@@ -402,6 +428,32 @@ function Index() {
       paybackMonths,
     };
   }, [automationCalc, p2mCalc]);
+
+  // Multi-year projection with ramp-up: Year 1 prorated by ramp curve, Years 2+ full run-rate
+  const multiYear = useMemo(() => {
+    if (!(hasAutomation || hasP2M)) return null;
+    const fullSavings = total.savings;
+    const baseline = total.baseline;
+    // Average attainment in Year 1 with linear ramp over `rampMonths` (capped at 12)
+    const r = Math.max(0, Math.min(12, rampMonths));
+    const year1Attainment = r <= 0 ? 1 : Math.max(0, (12 - r / 2) / 12);
+    const y1Savings = fullSavings * year1Attainment;
+    const y2Savings = fullSavings;
+    const y3Savings = fullSavings;
+    const rows = [
+      { year: 1, baseline, savings: y1Savings, finalCost: baseline - y1Savings, software: total.software, net: y1Savings - total.software, attainment: year1Attainment },
+      { year: 2, baseline, savings: y2Savings, finalCost: baseline - y2Savings, software: 0, net: y2Savings, attainment: 1 },
+      { year: 3, baseline, savings: y3Savings, finalCost: baseline - y3Savings, software: 0, net: y3Savings, attainment: 1 },
+    ];
+    let cum = 0;
+    const withCum = rows.map((r) => {
+      cum += r.net;
+      return { ...r, cumulative: cum };
+    });
+    const cumulativeRoi = total.software > 0 ? (y1Savings + y2Savings + y3Savings) / total.software : 0;
+    return { rows: withCum, cumulativeRoi };
+  }, [hasAutomation, hasP2M, total, rampMonths]);
+
 
   /* ---------- Executive summary (structured) ---------- */
   const advisor = useMemo(() => {
@@ -520,22 +572,28 @@ function Index() {
       }
     }
 
-    // Confidence
-    let score = 0;
-    if (dataSource === "actual") score += 2;
-    else score -= 1;
+    // Confidence — visual segmented score 0-10
+    type Segment = { label: string; unlocked: boolean; hint: string };
+    const segments: Segment[] = [];
+    segments.push({ label: "Customer data", unlocked: dataSource === "actual", hint: "Switch Step 02 to 'Yes, use customer data'." });
+    segments.push({ label: "Customer data (vol/cost)", unlocked: dataSource === "actual", hint: "Enter measured volumes and unit economics in Step 02." });
     if (hasAutomation) {
-      if (containmentMode === "manual") score += 2;
-      else score -= 1;
+      segments.push({ label: "Known containment", unlocked: containmentMode === "manual", hint: "Enter a measured containment rate instead of using the guided estimate." });
+      segments.push({ label: "Containment realistic (<=80%)", unlocked: containment <= 80, hint: "Containment above 80% is uncommon — pressure-test with pilot data." });
     }
     if (hasStaffing) {
-      if (useChannelAht) score += 2;
-      if (channelValid) score += 1;
-      if (occupancy !== 80 || shrinkage !== 20) score += 1;
+      segments.push({ label: "Per-channel AHTs", unlocked: useChannelAht, hint: "Switch to per-channel AHTs (voice / email / messaging)." });
+      segments.push({ label: "Channel mix totals 100%", unlocked: channelValid, hint: "Adjust channel mix percentages to total 100%." });
+      segments.push({ label: "Custom occupancy/shrinkage", unlocked: occupancy !== 80 || shrinkage !== 20, hint: "Replace default 80/20 with the customer's WFM figures." });
     }
-    if (numberOfAgents > 0) score += 1;
+    segments.push({ label: "Headcount entered", unlocked: numberOfAgents > 0, hint: "Enter the current number of agents." });
+    // Pad to exactly 10 segments
+    while (segments.length < 10) segments.push({ label: "Bonus signal", unlocked: false, hint: "Add another use case or refine inputs to unlock." });
+    const totalSegments = segments.length;
+    const unlockedCount = segments.filter((s) => s.unlocked).length;
+    const score10 = Math.round((unlockedCount / totalSegments) * 10);
     const level: "High" | "Medium" | "Low" =
-      score >= 5 ? "High" : score >= 2 ? "Medium" : "Low";
+      score10 >= 8 ? "High" : score10 >= 4 ? "Medium" : "Low";
     const confidenceExplanation =
       level === "High"
         ? toValidate.length === 0
@@ -554,8 +612,10 @@ function Index() {
       customerInputs,
       assumedInputs,
       toValidate,
-      confidence: { level, explanation: confidenceExplanation },
+      confidence: { level, explanation: confidenceExplanation, score10, segments },
     };
+
+
 
   }, [
     useCases,
@@ -610,12 +670,19 @@ function Index() {
     const doc = new jsPDF({ unit: "pt", format: "letter" });
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
     let y = margin;
+
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
     doc.text("Outcomes Executive Summary", margin, y);
+    doc.setTextColor(20);
     y += 28;
+
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
@@ -754,6 +821,274 @@ function Index() {
     );
   };
 
+  /* ---------- Board summary (one-page) ---------- */
+  const exportBoardPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
+    let y = margin;
+
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("BOARD SUMMARY", margin, y);
+    y += 14;
+    doc.setTextColor(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text(customerName || "Untitled Opportunity", margin, y);
+    y += 22;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(`${advisor.useCases.join(" + ") || "—"} · ${currency} · Scenario: ${scenarioMode}`, margin, y);
+    y += 28;
+
+    // Hero savings number
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(46);
+    const hero = (hasAutomation || hasP2M) ? fmt.compactCurrency(total.savings) : `${workforce?.baselineRequiredAgents.toFixed(0) ?? "—"} FTE`;
+    doc.text(hero, margin, y);
+    y += 14;
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(90);
+    doc.text((hasAutomation || hasP2M) ? "estimated annual savings" : "baseline required agents", margin, y);
+    y += 28;
+    doc.setTextColor(20);
+
+    // KPI row
+    if (hasAutomation || hasP2M) {
+      const kpis: [string, string][] = [
+        ["Annual Savings", fmt.compactCurrency(total.savings)],
+        ["ROI", `${total.roi.toFixed(1)}x`],
+        ["Cost Reduction", fmtPct(total.costReduction)],
+        ["Payback", fmtMonths(total.paybackMonths)],
+      ];
+      const colW = (pageW - margin * 2) / kpis.length;
+      kpis.forEach(([label, val], i) => {
+        const x = margin + i * colW;
+        doc.setDrawColor(220);
+        doc.rect(x, y, colW - 8, 60);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(label.toUpperCase(), x + 10, y + 16);
+        doc.setFontSize(15);
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "bold");
+        doc.text(val, x + 10, y + 42);
+        doc.setFont("helvetica", "normal");
+      });
+      y += 80;
+    }
+
+    // What this means (one sentence)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("What this means", margin, y);
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const meansLines = doc.splitTextToSize(effectiveAdvisor.whatThisMeans || "—", pageW - margin * 2);
+    doc.text(meansLines.slice(0, 3), margin, y);
+    y += meansLines.slice(0, 3).length * 13 + 14;
+
+    // What to validate (top 2)
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("What to validate", margin, y);
+    y += 14;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    (advisor.toValidate.slice(0, 2).length ? advisor.toValidate.slice(0, 2) : ["All key inputs verified."]).forEach((t) => {
+      const ls = doc.splitTextToSize(`• ${t}`, pageW - margin * 2);
+      doc.text(ls, margin, y);
+      y += ls.length * 13 + 4;
+    });
+    y += 8;
+
+    // Confidence bar
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(`Confidence: ${advisor.confidence.level} (${advisor.confidence.score10}/10)`, margin, y);
+    y += 10;
+    const barW = pageW - margin * 2;
+    const segW = barW / 10;
+    for (let i = 0; i < 10; i++) {
+      if (i < advisor.confidence.score10) {
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+      } else {
+        doc.setFillColor(230, 230, 230);
+      }
+      doc.rect(margin + i * segW + 2, y, segW - 4, 8, "F");
+    }
+    y += 24;
+
+    // Next step CTA at bottom
+    const ctaY = pageH - margin - 36;
+    doc.setDrawColor(accent[0], accent[1], accent[2]);
+    doc.setLineWidth(1);
+    doc.rect(margin, ctaY, pageW - margin * 2, 36);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(accent[0], accent[1], accent[2]);
+    doc.text("Recommended next step:", margin + 12, ctaY + 16);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(40);
+    doc.text("Run a 90-day pilot with measured containment & per-channel AHT capture.", margin + 12, ctaY + 30);
+
+    doc.save(`Board-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+  };
+
+  /* ---------- Proposal generator (multi-section) ---------- */
+  const exportProposalPdf = () => {
+    const doc = new jsPDF({ unit: "pt", format: "letter" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 56;
+    const accent = THEME_ACCENT[pdfTheme];
+    let y = margin;
+
+    const ensureSpace = (h: number) => {
+      if (y + h > pageH - margin) {
+        doc.addPage();
+        doc.setFillColor(accent[0], accent[1], accent[2]);
+        doc.rect(0, 0, pageW, 6, "F");
+        y = margin;
+      }
+    };
+    const h1 = (t: string) => {
+      ensureSpace(40);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(accent[0], accent[1], accent[2]);
+      doc.text(t, margin, y);
+      doc.setTextColor(20);
+      y += 22;
+    };
+    const h2 = (t: string) => {
+      ensureSpace(28);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(t, margin, y);
+      y += 16;
+    };
+    const para = (t: string) => {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      const lines = doc.splitTextToSize(t, pageW - margin * 2);
+      ensureSpace(lines.length * 13 + 6);
+      doc.text(lines, margin, y);
+      y += lines.length * 13 + 6;
+    };
+    const bullets = (items: string[]) => items.forEach((it) => para(`• ${it}`));
+
+    // Cover
+    doc.setFillColor(accent[0], accent[1], accent[2]);
+    doc.rect(0, 0, pageW, 6, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120);
+    doc.text("PROPOSAL", margin, y);
+    y += 16;
+    doc.setTextColor(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.text(customerName || "Untitled Opportunity", margin, y);
+    y += 30;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(90);
+    doc.text(`Conversational AI & Contact Center Outcomes · ${currency}`, margin, y);
+    y += 12;
+    doc.text(new Date().toLocaleDateString(), margin, y);
+    y += 30;
+    doc.setTextColor(20);
+
+    h1("1. Executive Summary");
+    para(effectiveAdvisor.headline);
+    if (effectiveAdvisor.whatThisMeans) para(effectiveAdvisor.whatThisMeans);
+
+    h1("2. Current State");
+    bullets(advisor.customerInputs.length ? advisor.customerInputs : ["No customer-provided inputs; all figures derived from benchmarks."]);
+
+    h1("3. Recommended Solution");
+    bullets(advisor.useCases.map((u) => `${u} — addressing scope per Step 01 selection.`));
+
+    h1("4. Financial Impact");
+    if (hasAutomation || hasP2M) {
+      const rows: [string, string][] = [
+        ["Total Baseline Cost", fmt.fmtCurrency(total.baseline)],
+        ["Total Final Cost", fmt.fmtCurrency(total.finalCost)],
+        ["Annual Savings", fmt.fmtCurrency(total.savings)],
+        ["Software Investment", fmt.fmtCurrency(total.software)],
+        ["Net Benefit (Year 1)", fmt.fmtCurrency(total.netBenefit)],
+        ["ROI Multiple", `${total.roi.toFixed(1)}x`],
+        ["Payback", fmtMonths(total.paybackMonths)],
+      ];
+      rows.forEach(([k, v]) => {
+        ensureSpace(16);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(90);
+        doc.text(k, margin, y);
+        doc.setTextColor(20);
+        doc.text(v, pageW - margin, y, { align: "right" });
+        y += 16;
+      });
+      if (multiYear) {
+        y += 8;
+        h2("3-year outlook (Scenario: " + scenarioMode + ")");
+        ensureSpace(20);
+        doc.setFontSize(9);
+        doc.setTextColor(120);
+        const cols = ["Year", "Savings", "Software", "Net", "Cumulative"];
+        const colW = (pageW - margin * 2) / cols.length;
+        cols.forEach((c, i) => doc.text(c, margin + i * colW, y));
+        y += 12;
+        doc.setTextColor(20);
+        doc.setFont("helvetica", "normal");
+        multiYear.rows.forEach((r) => {
+          ensureSpace(14);
+          const vals = [`Y${r.year}`, fmt.compactCurrency(r.savings), fmt.compactCurrency(r.software), fmt.compactCurrency(r.net), fmt.compactCurrency(r.cumulative)];
+          vals.forEach((v, i) => doc.text(v, margin + i * colW, y));
+          y += 14;
+        });
+      }
+    } else {
+      para("This scope focuses on workforce sizing analysis; ROI is not modeled. Add a cost-reduction use case to quantify financial impact.");
+    }
+
+    h1("5. Implementation Roadmap");
+    bullets([
+      "Phase 1 (Weeks 1–4): Discovery, data validation, baseline confirmation.",
+      "Phase 2 (Weeks 5–10): Pilot deployment with measured containment.",
+      `Phase 3 (Weeks 11–${10 + Math.max(4, rampMonths * 4)}): Phased rollout, ramping over ${rampMonths} months.`,
+      "Phase 4 (Ongoing): KPI tracking, optimization, expansion to adjacent use cases.",
+    ]);
+
+    h1("6. Risk & Mitigation");
+    bullets(advisor.toValidate.length ? advisor.toValidate : ["No material risks identified — all inputs validated."]);
+
+    h1("7. Next Steps");
+    bullets([
+      "Confirm scope and success metrics with executive sponsor.",
+      "Schedule discovery sessions with WFM and operations leads.",
+      "Define pilot cohort and measurement plan.",
+      "Approve commercials and kick off Phase 1.",
+    ]);
+
+    doc.save(`Proposal-${(customerName || "summary").replace(/[^a-z0-9]+/gi, "-")}.pdf`);
+  };
+
+
+
   /* ---------- Snapshot / Save / Share / Comments ---------- */
   const snapshot = () => ({
     customerName, currency, useCases: Array.from(useCases),
@@ -764,7 +1099,9 @@ function Index() {
     aiCost, softwareInvestment, containmentMode, resolutionRate, automationType,
     p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware,
     occupancy, shrinkage,
+    scenarioMode, rampMonths, pdfTheme,
   });
+
   const applySnapshot = (s: any) => {
     if (!s || typeof s !== "object") return;
     const set = <T,>(v: T | undefined, fn: (x: T) => void) => {
@@ -801,7 +1138,11 @@ function Index() {
     set(s.p2mSoftware, setP2mSoftware);
     set(s.occupancy, setOccupancy);
     set(s.shrinkage, setShrinkage);
+    set(s.scenarioMode, setScenarioMode);
+    set(s.rampMonths, setRampMonths);
+    set(s.pdfTheme, setPdfTheme);
     if (s.customerName && s.useCases?.length) {
+
       setStep1Open(false);
       setStep2Open(false);
     }
@@ -956,10 +1297,29 @@ function Index() {
                 {shareMsg || "Share"}
               </Button>
               {showStep3 && (
-                <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
-                  Download PDF
-                </Button>
+                <>
+                  <Select value={pdfTheme} onValueChange={(v) => setPdfTheme(v as PdfTheme)}>
+                    <SelectTrigger className="h-8 w-[140px] rounded-full text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minimal">Theme: Minimal</SelectItem>
+                      <SelectItem value="corporate">Theme: Corporate</SelectItem>
+                      <SelectItem value="warm">Theme: Warm</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="outline" size="sm" onClick={exportPdf} className="rounded-full">
+                    Download PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportBoardPdf} className="rounded-full">
+                    Board summary
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportProposalPdf} className="rounded-full">
+                    Proposal
+                  </Button>
+                </>
               )}
+
             </div>
           </div>
         </header>
@@ -1449,8 +1809,16 @@ function Index() {
                             onChange={setAht}
                             step={0.1}
                           />
+                          <BenchmarkBadge
+                            value={aht}
+                            low={6}
+                            high={10}
+                            label="voice AHT"
+                            range={BENCHMARK_RANGE.voice}
+                          />
                         </Field>
                       )}
+
 
                       <Collapsible open={advOpen} onOpenChange={setAdvOpen}>
                         <CollapsibleTrigger asChild>
@@ -1545,6 +1913,37 @@ function Index() {
                 </p>
               )}
 
+              {/* Scenario & ramp controls — only meaningful when a financial use case is selected */}
+              {(hasAutomation || hasP2M) && (
+                <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Scenario
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <RadioPill active={scenarioMode === "conservative"} label="Conservative (−10pp)" onClick={() => setScenarioMode("conservative")} />
+                        <RadioPill active={scenarioMode === "expected"} label="Expected" onClick={() => setScenarioMode("expected")} />
+                        <RadioPill active={scenarioMode === "aggressive"} label="Aggressive (+10pp)" onClick={() => setScenarioMode("aggressive")} />
+                      </div>
+                    </div>
+                    <div className="w-full md:w-auto">
+                      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                        Ramp to full run-rate
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <NumberInput value={rampMonths} onChange={(n) => setRampMonths(Math.max(0, Math.min(12, n)))} />
+                        <span className="text-xs text-muted-foreground">months</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-[11px] text-muted-foreground">
+                    Scenario adjusts containment & deflection by ±10pp. Ramp prorates Year 1 savings.
+                  </div>
+                </div>
+              )}
+
+
               {/* KPIs — financial metrics only when Automation or P2M is selected */}
               {(hasAutomation || hasP2M) && (
                 <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
@@ -1636,10 +2035,37 @@ function Index() {
               </SummaryBlock>
 
               {/* Confidence + assumptions to validate (consolidated) */}
-              <SummaryBlock title={`Confidence: ${advisor.confidence.level}`}>
+              <SummaryBlock title={`Confidence: ${advisor.confidence.level} (${advisor.confidence.score10}/10)`}>
+                {/* Segmented meter */}
+                <div className="mb-3 flex gap-1">
+                  {advisor.confidence.segments.map((seg, i) => (
+                    <Tooltip key={i}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`h-2 flex-1 rounded-sm transition-colors ${
+                            seg.unlocked
+                              ? advisor.confidence.score10 >= 8
+                                ? "bg-emerald-500"
+                                : advisor.confidence.score10 >= 4
+                                  ? "bg-amber-500"
+                                  : "bg-rose-500"
+                              : "bg-border"
+                          }`}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        <div className="font-medium">{seg.label}</div>
+                        <div className="mt-1 text-muted-foreground">
+                          {seg.unlocked ? "Unlocked." : seg.hint}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
                 <p className="text-sm leading-relaxed text-foreground/90">
                   {advisor.confidence.explanation}
                 </p>
+
                 {advisor.assumedInputs.length > 0 && (
                   <div className="mt-4">
                     <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
@@ -1762,6 +2188,44 @@ function Index() {
                   </dl>
                 </SummaryBlock>
               )}
+
+              {/* Multi-year outlook */}
+              {multiYear && (
+                <SummaryBlock title="3-year outlook">
+                  <div className="text-[11px] text-muted-foreground mb-3">
+                    Year 1 prorated by ramp-up ({rampMonths} mo, {(multiYear.rows[0].attainment * 100).toFixed(0)}% attainment). Years 2–3 at full run-rate. Software cost in Year 1 only.
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm tabular-nums">
+                      <thead>
+                        <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                          <th className="py-2 font-medium">Year</th>
+                          <th className="py-2 font-medium">Savings</th>
+                          <th className="py-2 font-medium">Software</th>
+                          <th className="py-2 font-medium">Net</th>
+                          <th className="py-2 text-right font-medium">Cumulative</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multiYear.rows.map((r) => (
+                          <tr key={r.year} className="border-b border-border/60">
+                            <td className="py-2.5">Year {r.year}</td>
+                            <td className="py-2.5">{fmt.compactCurrency(r.savings)}</td>
+                            <td className="py-2.5 text-muted-foreground">{r.software > 0 ? fmt.compactCurrency(r.software) : "—"}</td>
+                            <td className="py-2.5">{fmt.compactCurrency(r.net)}</td>
+                            <td className="py-2.5 text-right font-medium">{fmt.compactCurrency(r.cumulative)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-3 text-xs text-muted-foreground">
+                    3-year cumulative ROI: <span className="font-medium text-foreground">{multiYear.cumulativeRoi.toFixed(1)}×</span>
+                  </div>
+                </SummaryBlock>
+              )}
+
+
 
 
               <div className="flex flex-wrap justify-end gap-3 pt-2">
@@ -1920,12 +2384,20 @@ function Index() {
                       <Button
                         size="sm"
                         variant="ghost"
+                        onClick={() => { setCompareWith(s.name); setCompareOpen(true); }}
+                      >
+                        Compare
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
                         onClick={() => handleDeleteSave(s.name)}
                         aria-label="Delete saved scenario"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
+
                   </li>
                 ))}
               </ul>
@@ -1973,6 +2445,15 @@ function Index() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <CompareDialog
+          open={compareOpen}
+          onOpenChange={setCompareOpen}
+          currentSnapshot={snapshot()}
+          otherName={compareWith}
+        />
+
+
 
         {presentationOpen && showStep3 && (
           <PresentationView
@@ -2294,6 +2775,123 @@ function ToggleCard({
     </button>
   );
 }
+
+function BenchmarkBadge({
+  value,
+  low,
+  high,
+  label,
+  range,
+}: {
+  value: number;
+  low: number;
+  high: number;
+  label: string;
+  range: string;
+}) {
+  if (!isFinite(value) || value <= 0) return null;
+  const status: "below" | "in" | "above" =
+    value < low ? "below" : value > high ? "above" : "in";
+  const text =
+    status === "in"
+      ? `Within industry benchmark for ${label} (${range}).`
+      : status === "below"
+        ? `Below industry benchmark for ${label} (${range}) — verify this is realistic.`
+        : `Above industry benchmark for ${label} (${range}) — may indicate complexity or training opportunity.`;
+  const color =
+    status === "in"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
+      : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+  return (
+    <div className={`mt-2 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
+      {text}
+    </div>
+  );
+}
+
+function CompareDialog({
+  open,
+  onOpenChange,
+  currentSnapshot,
+  otherName,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  currentSnapshot: any;
+  otherName: string;
+}) {
+  const other = useMemo(() => {
+    if (!otherName) return null;
+    try {
+      const raw = localStorage.getItem(`outcomes-save-${otherName}`);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, [otherName, open]);
+
+  const diffs = useMemo(() => {
+    if (!other) return [];
+    const keys = Array.from(
+      new Set([...Object.keys(currentSnapshot || {}), ...Object.keys(other || {})]),
+    );
+    const rows: { key: string; current: any; other: any }[] = [];
+    keys.forEach((k) => {
+      const a = (currentSnapshot as any)[k];
+      const b = (other as any)[k];
+      const sa = JSON.stringify(a);
+      const sb = JSON.stringify(b);
+      if (sa !== sb) rows.push({ key: k, current: a, other: b });
+    });
+    return rows;
+  }, [currentSnapshot, other]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Compare with “{otherName}”</DialogTitle>
+          <DialogDescription>
+            Side-by-side diff of inputs between your current scenario and the saved version.
+          </DialogDescription>
+        </DialogHeader>
+        {!other ? (
+          <div className="text-sm text-muted-foreground">Saved scenario not found.</div>
+        ) : diffs.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No differences — inputs match exactly.</div>
+        ) : (
+          <div className="max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-sm tabular-nums">
+              <thead>
+                <tr className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <th className="py-2 font-medium">Input</th>
+                  <th className="py-2 font-medium">Current</th>
+                  <th className="py-2 font-medium">{otherName}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {diffs.map((d) => (
+                  <tr key={d.key} className="border-b border-border/60">
+                    <td className="py-2 pr-3 font-medium text-foreground">{d.key}</td>
+                    <td className="py-2 pr-3">{String(JSON.stringify(d.current) ?? "—")}</td>
+                    <td className="py-2 text-muted-foreground">{String(JSON.stringify(d.other) ?? "—")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+
+
 
 function UseCaseCard({
   active,
