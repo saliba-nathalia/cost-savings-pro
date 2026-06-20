@@ -718,7 +718,6 @@ function Index() {
       if (v !== undefined && v !== null) fn(v);
     };
     set(s.customerName, setCustomerName);
-    set(s.dealStage, setDealStage);
     set(s.currency, setCurrency);
     if (Array.isArray(s.useCases)) setUseCases(new Set(s.useCases));
     set(s.dataSource, setDataSource);
