@@ -465,9 +465,10 @@ function Index() {
     }
 
 
-    // What we assumed
+    // What we assumed — each assumption is paired with what to validate to raise confidence
     const customerInputs: string[] = [];
     const assumedInputs: string[] = [];
+    const toValidate: string[] = [];
     if (dataSource === "actual") {
       if (hasAutomation) customerInputs.push(`Annual volume: ${fmtNumber(annualVolume)}`);
       if (hasP2M) customerInputs.push(`Phone volume: ${fmtNumber(p2mPhoneVolume)}`);
@@ -476,24 +477,46 @@ function Index() {
       assumedInputs.push(
         `Human cost from ${SUPPORT_MODEL_LABEL[supportModel]} (${fmt.fmtCurrency(hourlyCost)}/hr × ${aht} min AHT = ${fmt.fmtCurrency2(derivedFromHourly)})`,
       );
+      toValidate.push(
+        `Confirm actual per-interaction human cost from finance/WFM (currently derived from ${fmt.fmtCurrency(hourlyCost)}/hr × ${aht} min AHT = ${fmt.fmtCurrency2(derivedFromHourly)}).`,
+      );
+      toValidate.push(
+        `Confirm actual annual interaction volume${hasP2M ? " and phone volume" : ""} from contact-center reporting instead of benchmarks.`,
+      );
     }
     if (hasAutomation) {
       if (containmentMode === "guided") {
         assumedInputs.push(
           `Containment: ${guidedContainment}% (${AUTOMATION_TYPES[automationType].label})`,
         );
+        toValidate.push(
+          `Replace the guided ${guidedContainment}% containment estimate with a measured rate from a pilot or comparable deployment.`,
+        );
       } else {
         customerInputs.push(`Containment: ${containment}%`);
+      }
+      if (containment > 80) {
+        toValidate.push(
+          `Pressure-test the ${containment}% containment — anything above 80% is uncommon and usually requires deep CRM/OMS/billing integrations.`,
+        );
       }
     }
     if (hasStaffing) {
       assumedInputs.push(`Occupancy ${occupancy}%, shrinkage ${shrinkage}%`);
+      if (occupancy === 80 && shrinkage === 20) {
+        toValidate.push(
+          `Replace default occupancy (80%) and shrinkage (20%) with the customer's actual WFM figures.`,
+        );
+      }
       if (useChannelAht) {
         customerInputs.push(
           `Channel AHTs — voice ${voiceAht}m, email ${emailAht}m, messaging ${messagingAht}m`,
         );
       } else {
         assumedInputs.push(`Blended AHT of ${aht} min across all channels`);
+        toValidate.push(
+          `Provide per-channel AHTs (voice / email / messaging) instead of the single blended ${aht}-minute figure.`,
+        );
       }
     }
 
@@ -515,10 +538,13 @@ function Index() {
       score >= 5 ? "High" : score >= 2 ? "Medium" : "Low";
     const confidenceExplanation =
       level === "High"
-        ? "Most of your inputs are real customer data, so this estimate is reliable for planning."
+        ? toValidate.length === 0
+          ? "All key inputs come from customer data, so this estimate is reliable for planning."
+          : "Most inputs come from customer data. Validate the items below to lock the estimate in for contracting."
         : level === "Medium"
-          ? "A few key numbers are still assumptions — directionally right, worth validating before contracting."
-          : "Many inputs are assumptions. Treat this as a rough starting point and refine with customer data.";
+          ? "Several key numbers are still assumptions — directionally right, but validate the items below before contracting."
+          : "Most inputs are assumptions. Treat this as a rough starting point and validate the items below with the customer.";
+
 
     return {
       headline,
