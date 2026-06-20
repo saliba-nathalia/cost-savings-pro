@@ -1439,12 +1439,47 @@ function Index() {
           )}
 
           {/* Step 03 — Results */}
-          {showStep3 && (
+          {showStep3 && (() => {
+            const effHeadline = summaryOverride.headline ?? advisor.headline;
+            const effFound = summaryOverride.whatWeFound ?? advisor.whatWeFound;
+            const effMeans = summaryOverride.whatThisMeans ?? advisor.whatThisMeans;
+            const staffingOnly = hasStaffing && !hasAutomation && !hasP2M;
+            const startEditing = () => {
+              setDraftHeadline(effHeadline);
+              setDraftFound((effFound as string[]).join("\n"));
+              setDraftMeans(effMeans || "");
+              setEditingSummary(true);
+            };
+            const saveEditing = () => {
+              setSummaryOverride({
+                headline: draftHeadline.trim() || advisor.headline,
+                whatWeFound: draftFound
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+                whatThisMeans: draftMeans.trim(),
+              });
+              setEditingSummary(false);
+            };
+            const resetEditing = () => {
+              setSummaryOverride({});
+              setEditingSummary(false);
+            };
+            return (
             <Section title="Executive Summary" eyebrow="03">
               {/* Headline */}
-              <p className="font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
-                {advisor.headline}
-              </p>
+              {editingSummary ? (
+                <Textarea
+                  value={draftHeadline}
+                  onChange={(e) => setDraftHeadline(e.target.value)}
+                  rows={2}
+                  className="font-serif text-xl"
+                />
+              ) : (
+                <p className="font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
+                  {effHeadline}
+                </p>
+              )}
 
               {/* KPIs — financial metrics only when Automation or P2M is selected */}
               {(hasAutomation || hasP2M) && (
@@ -1466,27 +1501,60 @@ function Index() {
               )}
 
               {/* What we found */}
-              {advisor.whatWeFound.length > 0 && (
+              {(editingSummary || effFound.length > 0) && (
                 <SummaryBlock title="What we found">
-                  <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
-                    {advisor.whatWeFound.map((s, i) => (
-                      <li key={i} className="flex gap-2">
-                        <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
-                        <span>{s}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {editingSummary ? (
+                    <Textarea
+                      value={draftFound}
+                      onChange={(e) => setDraftFound(e.target.value)}
+                      rows={6}
+                      placeholder="One bullet per line"
+                    />
+                  ) : (
+                    <ul className="space-y-2 text-sm leading-relaxed text-foreground/90">
+                      {effFound.map((s: string, i: number) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="mt-2 inline-block h-1 w-1 shrink-0 rounded-full bg-foreground/60" />
+                          <span>{s}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </SummaryBlock>
               )}
 
+              {/* Staffing-only callout */}
+              {staffingOnly && !editingSummary && (
+                <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/40 p-4">
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
+                  <div className="text-sm leading-relaxed text-foreground/90">
+                    This use case is for current-state sizing only — it doesn't
+                    produce ROI or savings on its own. Add{" "}
+                    <span className="font-medium">Cost Savings / Automation</span>{" "}
+                    or{" "}
+                    <span className="font-medium">Phone to Messaging</span> to
+                    model the efficiencies and FTE capacity you could free up.
+                  </div>
+                </div>
+              )}
+
               {/* What this means */}
-              {advisor.whatThisMeans && (
+              {(editingSummary || effMeans) && (
                 <SummaryBlock title="What this means">
-                  <p className="text-sm leading-relaxed text-foreground/90">
-                    {advisor.whatThisMeans}
-                  </p>
+                  {editingSummary ? (
+                    <Textarea
+                      value={draftMeans}
+                      onChange={(e) => setDraftMeans(e.target.value)}
+                      rows={4}
+                    />
+                  ) : (
+                    <p className="text-sm leading-relaxed text-foreground/90">
+                      {effMeans}
+                    </p>
+                  )}
                 </SummaryBlock>
               )}
+
 
               {/* What we assumed */}
               <SummaryBlock title="What we assumed">
