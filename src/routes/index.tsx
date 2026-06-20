@@ -2261,12 +2261,15 @@ function PresentationView({
     lines.push("HEADLINE");
     lines.push(advisor.headline);
     lines.push("");
-    lines.push("KEY OUTCOMES");
-    lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
-    lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
-    lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
-    lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
-    lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
+    const hasFinancial = !!(automationCalc || p2mCalc);
+    if (hasFinancial) {
+      lines.push("KEY OUTCOMES");
+      lines.push(`• Annual Savings: ${fmt.compactCurrency(total.savings)}`);
+      lines.push(`• ROI Multiple: ${total.roi.toFixed(1)}x`);
+      lines.push(`• Cost Reduction: ${fmtPct(total.costReduction)}`);
+      lines.push(`• Payback Period: ${fmtMonths(total.paybackMonths)}`);
+      lines.push(`• Net Benefit: ${fmt.fmtCurrency(total.netBenefit)}`);
+    }
     if (advisor.whatWeFound.length) {
       lines.push("");
       lines.push("WHAT WE FOUND");
