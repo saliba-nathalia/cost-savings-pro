@@ -1936,7 +1936,7 @@ function Index() {
             }}
             customerName={customerName}
             currency={currency}
-            advisor={advisor}
+            advisor={effectiveAdvisor}
             total={total}
             fmt={fmt}
             setup={{
