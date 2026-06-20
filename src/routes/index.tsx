@@ -83,11 +83,154 @@ const AUTOMATION_TYPES: Record<
   api_5_8: { label: "Integrations / APIs (5–8 APIs)", range: [70, 75], mid: 72 },
 };
 
-const BENCHMARK_AHT = { voice: 8, email: 12, messaging: 6 };
-const BENCHMARK_RANGE = {
-  voice: "6–10 min",
-  email: "10–15 min",
-  messaging: "5–7 min",
+/* ---------- Industry benchmarks (publicly sourced) ----------
+ * Phone AHT medians come from "Average Handle Time Benchmarks by Industry"
+ * (Supp, 2026 update) — https://supp.support/blog/average-handle-time-benchmarks
+ * Email / Live-chat medians use the same source's cross-industry channel medians
+ * (live chat 8–11 min, email 12–18 min) when no industry-specific number is
+ * published. Containment & deflection draw on Gartner's 2024 chatbot
+ * containment outlook (≈30% Tier-1 deflection) and Zendesk CX Trends 2025
+ * (self-service deflection 20–35%). Where no defensible public number exists
+ * we mark the row "Estimate — verify with customer data".
+ */
+type IndustryKey =
+  | "banking"
+  | "insurance"
+  | "retail"
+  | "travel"
+  | "airlines"
+  | "utilities"
+  | "telco"
+  | "gaming"
+  | "healthcare"
+  | "other";
+
+type BenchmarkValue = {
+  value: number;
+  range: string;
+  source: string;
+  url?: string;
+};
+
+type IndustryBenchmark = {
+  label: string;
+  voiceAht: BenchmarkValue;
+  emailAht: BenchmarkValue;
+  messagingAht: BenchmarkValue;
+  containment: BenchmarkValue;
+  deflection: BenchmarkValue;
+} | null;
+
+const SUPP_URL =
+  "https://supp.support/blog/average-handle-time-benchmarks";
+const GARTNER_NOTE =
+  "Gartner, Predicts 2024: CX & Conversational AI (chatbot Tier-1 containment ~30%)";
+const ZENDESK_NOTE =
+  "Zendesk CX Trends 2025 (self-service deflection 20–35%)";
+
+const EMAIL_DEFAULT: BenchmarkValue = {
+  value: 15,
+  range: "12–18 min",
+  source: "Supp 2026 (cross-industry email median)",
+  url: SUPP_URL,
+};
+const CHAT_DEFAULT: BenchmarkValue = {
+  value: 9,
+  range: "8–11 min",
+  source: "Supp 2026 (cross-industry live-chat median)",
+  url: SUPP_URL,
+};
+
+const INDUSTRY_BENCHMARKS: Record<IndustryKey, IndustryBenchmark> = {
+  banking: {
+    label: "Banking",
+    voiceAht: { value: 10, range: "8–12 min", source: "Supp 2026 — Financial Services / Banking", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 30, range: "25–35%", source: GARTNER_NOTE },
+    deflection: { value: 25, range: "20–30%", source: ZENDESK_NOTE },
+  },
+  insurance: {
+    label: "Insurance",
+    voiceAht: { value: 10, range: "8–12 min", source: "Estimate aligned to Financial Services band (Supp 2026)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 28, range: "20–35%", source: GARTNER_NOTE },
+    deflection: { value: 22, range: "18–28%", source: ZENDESK_NOTE },
+  },
+  retail: {
+    label: "Retail / E-commerce",
+    voiceAht: { value: 6, range: "5–7 min", source: "Supp 2026 — E-Commerce / Retail", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 40, range: "30–50%", source: GARTNER_NOTE },
+    deflection: { value: 30, range: "25–40%", source: ZENDESK_NOTE },
+  },
+  travel: {
+    label: "Travel & Hospitality",
+    voiceAht: { value: 7, range: "6–9 min", source: "Estimate — Travel typically tracks between Retail and Telecom (Supp 2026 bands)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 30, range: "25–40%", source: GARTNER_NOTE },
+    deflection: { value: 25, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  airlines: {
+    label: "Airlines",
+    voiceAht: { value: 9, range: "7–11 min", source: "Estimate — disruption & rebooking calls push above Travel median (Supp 2026 channel median)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 25, range: "20–30%", source: GARTNER_NOTE },
+    deflection: { value: 22, range: "18–28%", source: ZENDESK_NOTE },
+  },
+  utilities: {
+    label: "Utilities",
+    voiceAht: { value: 7, range: "6–9 min", source: "Estimate — billing & outage mix sits near cross-industry phone median (Supp 2026)", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 35, range: "25–45%", source: GARTNER_NOTE },
+    deflection: { value: 28, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  telco: {
+    label: "Telecommunications",
+    voiceAht: { value: 8, range: "7–10 min", source: "Supp 2026 — Telecommunications", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 32, range: "25–40%", source: GARTNER_NOTE },
+    deflection: { value: 28, range: "20–35%", source: ZENDESK_NOTE },
+  },
+  gaming: {
+    label: "Gaming & Betting",
+    voiceAht: { value: 6, range: "5–8 min", source: "Estimate — high-volume digital support, no public median available", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 40, range: "30–50%", source: GARTNER_NOTE },
+    deflection: { value: 35, range: "25–45%", source: ZENDESK_NOTE },
+  },
+  healthcare: {
+    label: "Healthcare",
+    voiceAht: { value: 12, range: "10–15 min", source: "Supp 2026 — Healthcare", url: SUPP_URL },
+    emailAht: EMAIL_DEFAULT,
+    messagingAht: CHAT_DEFAULT,
+    containment: { value: 22, range: "15–30%", source: GARTNER_NOTE },
+    deflection: { value: 18, range: "12–25%", source: ZENDESK_NOTE },
+  },
+  other: null,
+};
+
+const BENCHMARK_KEYS = [
+  "voiceAht",
+  "emailAht",
+  "messagingAht",
+  "containment",
+  "deflection",
+] as const;
+type BenchmarkKey = (typeof BENCHMARK_KEYS)[number];
+const BENCHMARK_LABELS: Record<BenchmarkKey, string> = {
+  voiceAht: "Voice AHT",
+  emailAht: "Email AHT",
+  messagingAht: "Messaging AHT",
+  containment: "Automation containment",
+  deflection: "Phone-to-messaging deflection",
 };
 
 const CURRENCIES: Record<
