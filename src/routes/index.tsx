@@ -1876,6 +1876,39 @@ function Index() {
           </div>
         </footer>
 
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Name this scenario</DialogTitle>
+              <DialogDescription>
+                A customer name is required to save. We'll use it as the
+                scenario's label and to scope comments.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="save-name">Customer Name</Label>
+              <Input
+                id="save-name"
+                autoFocus
+                value={saveDialogName}
+                onChange={(e) => setSaveDialogName(e.target.value)}
+                placeholder="Acme Corporation"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && saveDialogName.trim()) confirmSaveDialog();
+                }}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setSaveDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={confirmSaveDialog} disabled={!saveDialogName.trim()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {presentationOpen && showStep3 && (
           <PresentationView
             onClose={() => setPresentationOpen(false)}
