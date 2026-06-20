@@ -290,7 +290,8 @@ function Index() {
   const automationCalc = useMemo(() => {
     if (!hasAutomation) return null;
     const volume = annualVolume;
-    const rate = Math.min(containment, 100) / 100;
+    const adjContainment = Math.max(0, Math.min(100, containment + scenarioDelta));
+    const rate = adjContainment / 100;
     const baseline = volume * humanCost;
     const aiResolved = volume * rate;
     const remainingHuman = volume - aiResolved;
@@ -301,6 +302,7 @@ function Index() {
     return {
       volume,
       rate,
+      adjContainment,
       baseline,
       aiResolved,
       remainingHuman,
@@ -310,23 +312,26 @@ function Index() {
       savings,
       software: softwareInvestment,
     };
-  }, [hasAutomation, annualVolume, containment, humanCost, aiCost, softwareInvestment]);
+  }, [hasAutomation, annualVolume, containment, scenarioDelta, humanCost, aiCost, softwareInvestment]);
 
   const p2mCalc = useMemo(() => {
     if (!hasP2M) return null;
-    const shifted = p2mPhoneVolume * (p2mDeflection / 100);
+    const adjDeflection = Math.max(0, Math.min(100, p2mDeflection + scenarioDelta));
+    const shifted = p2mPhoneVolume * (adjDeflection / 100);
     const baseline = p2mPhoneVolume * p2mPhoneCost;
     const finalCost =
       (p2mPhoneVolume - shifted) * p2mPhoneCost + shifted * p2mMessagingCost;
     const savings = baseline - finalCost;
     return {
       shifted,
+      adjDeflection,
       baseline,
       finalCost,
       savings,
       software: p2mSoftware,
     };
-  }, [hasP2M, p2mPhoneVolume, p2mDeflection, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
+  }, [hasP2M, p2mPhoneVolume, p2mDeflection, scenarioDelta, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
+
 
   const workforce = useMemo(() => {
     if (!hasStaffing) return null;
