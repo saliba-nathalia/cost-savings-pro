@@ -2456,12 +2456,14 @@ function PresentationView({
           <p className="mt-4 font-serif text-2xl leading-snug tracking-tight text-foreground md:text-3xl">
             {advisor.headline}
           </p>
-          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-            <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
-            <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
-            <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
-            <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
-          </div>
+          {(automationCalc || p2mCalc) && (
+            <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+              <DeckKpi label="Annual Savings" value={fmt.compactCurrency(total.savings)} />
+              <DeckKpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+              <DeckKpi label="Cost Reduction" value={fmtPct(total.costReduction)} />
+              <DeckKpi label="Payback Period" value={fmtMonths(total.paybackMonths)} />
+            </div>
+          )}
         </Slide>
 
         {/* Slide — What we found */}
