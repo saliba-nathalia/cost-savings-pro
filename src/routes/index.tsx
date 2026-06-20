@@ -1430,22 +1430,24 @@ function Index() {
                 {advisor.headline}
               </p>
 
-              {/* KPIs */}
-              <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
-                <Kpi
-                  label="Annual Savings"
-                  value={fmt.compactCurrency(total.savings)}
-                />
-                <Kpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
-                <Kpi
-                  label="Cost Reduction"
-                  value={fmtPct(total.costReduction)}
-                />
-                <Kpi
-                  label="Payback Period"
-                  value={fmtMonths(total.paybackMonths)}
-                />
-              </div>
+              {/* KPIs — financial metrics only when Automation or P2M is selected */}
+              {(hasAutomation || hasP2M) && (
+                <div className="grid grid-cols-2 gap-3 pt-2 md:grid-cols-4">
+                  <Kpi
+                    label="Annual Savings"
+                    value={fmt.compactCurrency(total.savings)}
+                  />
+                  <Kpi label="ROI Multiple" value={`${total.roi.toFixed(1)}x`} />
+                  <Kpi
+                    label="Cost Reduction"
+                    value={fmtPct(total.costReduction)}
+                  />
+                  <Kpi
+                    label="Payback Period"
+                    value={fmtMonths(total.paybackMonths)}
+                  />
+                </div>
+              )}
 
               {/* What we found */}
               {advisor.whatWeFound.length > 0 && (
