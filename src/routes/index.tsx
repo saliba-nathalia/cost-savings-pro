@@ -2985,35 +2985,186 @@ function ToggleCard({
 }
 
 function BenchmarkBadge({
+  benchmark,
   value,
-  low,
-  high,
-  label,
-  range,
+  bkey,
+  overrideSet,
+  override,
 }: {
+  benchmark: BenchmarkValue | null;
   value: number;
-  low: number;
-  high: number;
-  label: string;
-  range: string;
+  bkey: BenchmarkKey;
+  overrideSet: (k: BenchmarkKey, v: { source: string; url?: string } | null) => void;
+  override?: { source: string; url?: string };
 }) {
-  if (!isFinite(value) || value <= 0) return null;
+  const [draftSource, setDraftSource] = useState(override?.source ?? "");
+  const [draftUrl, setDraftUrl] = useState(override?.url ?? "");
+  const [open, setOpen] = useState(false);
+
+  // No benchmark available for this industry
+  if (!benchmark) {
+    return (
+      <div className="mt-2 flex items-start justify-between gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+        <span>
+          No public benchmark for this industry — please validate this value with the customer.
+        </span>
+        <OverrideTrigger
+          open={open}
+          setOpen={setOpen}
+          draftSource={draftSource}
+          setDraftSource={setDraftSource}
+          draftUrl={draftUrl}
+          setDraftUrl={setDraftUrl}
+          override={override}
+          onSave={() => {
+            overrideSet(bkey, { source: draftSource, url: draftUrl || undefined });
+            setOpen(false);
+          }}
+          onClear={() => {
+            overrideSet(bkey, null);
+            setDraftSource("");
+            setDraftUrl("");
+            setOpen(false);
+          }}
+        />
+      </div>
+    );
+  }
+
+  const [low, high] = parseRange(benchmark.range);
   const status: "below" | "in" | "above" =
-    value < low ? "below" : value > high ? "above" : "in";
+    !isFinite(value) || value <= 0
+      ? "in"
+      : value < low
+      ? "below"
+      : value > high
+      ? "above"
+      : "in";
   const text =
     status === "in"
-      ? `Within industry benchmark for ${label} (${range}).`
+      ? `Within benchmark (${benchmark.range}).`
       : status === "below"
-        ? `Below industry benchmark for ${label} (${range}) — verify this is realistic.`
-        : `Above industry benchmark for ${label} (${range}) — may indicate complexity or training opportunity.`;
+      ? `Below benchmark (${benchmark.range}) — verify this is realistic.`
+      : `Above benchmark (${benchmark.range}) — may indicate complexity or training opportunity.`;
   const color =
     status === "in"
       ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400"
       : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+
   return (
-    <div className={`mt-2 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
-      {text}
+    <div className={`mt-2 space-y-1 rounded-md border px-2.5 py-1.5 text-[11px] ${color}`}>
+      <div className="flex items-start justify-between gap-2">
+        <span>{text}</span>
+        <OverrideTrigger
+          open={open}
+          setOpen={setOpen}
+          draftSource={draftSource}
+          setDraftSource={setDraftSource}
+          draftUrl={draftUrl}
+          setDraftUrl={setDraftUrl}
+          override={override}
+          onSave={() => {
+            overrideSet(bkey, { source: draftSource, url: draftUrl || undefined });
+            setOpen(false);
+          }}
+          onClear={() => {
+            overrideSet(bkey, null);
+            setDraftSource("");
+            setDraftUrl("");
+            setOpen(false);
+          }}
+        />
+      </div>
+      <div className="text-[10px] opacity-80">
+        Source:{" "}
+        {benchmark.url ? (
+          <a href={benchmark.url} target="_blank" rel="noopener noreferrer" className="underline">
+            {benchmark.source}
+          </a>
+        ) : (
+          benchmark.source
+        )}
+        {override ? " · Customer-provided" : ""}
+      </div>
     </div>
+  );
+}
+
+function parseRange(s: string): [number, number] {
+  // Accepts strings like "6–10 min", "25–35%", "8-12 min"
+  const m = s.match(/([\d.]+)\s*[–-]\s*([\d.]+)/);
+  if (!m) return [0, Infinity];
+  return [parseFloat(m[1]), parseFloat(m[2])];
+}
+
+function OverrideTrigger({
+  open,
+  setOpen,
+  draftSource,
+  setDraftSource,
+  draftUrl,
+  setDraftUrl,
+  override,
+  onSave,
+  onClear,
+}: {
+  open: boolean;
+  setOpen: (o: boolean) => void;
+  draftSource: string;
+  setDraftSource: (s: string) => void;
+  draftUrl: string;
+  setDraftUrl: (s: string) => void;
+  override?: { source: string; url?: string };
+  onSave: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="shrink-0 rounded border border-current/30 px-1.5 py-0.5 text-[10px] font-medium hover:bg-current/10"
+        >
+          {override ? "Edit source" : "Override"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 space-y-2 text-xs">
+        <div className="font-medium">Override benchmark source</div>
+        <div className="text-muted-foreground">
+          Replace our default with your own benchmark label. The value stays whatever you typed in the field above.
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Source label
+          </Label>
+          <Input
+            value={draftSource}
+            onChange={(e) => setDraftSource(e.target.value)}
+            placeholder="e.g. Internal 2026 ops audit"
+            className="mt-1 h-8 text-xs"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            URL (optional)
+          </Label>
+          <Input
+            value={draftUrl}
+            onChange={(e) => setDraftUrl(e.target.value)}
+            placeholder="https://…"
+            className="mt-1 h-8 text-xs"
+          />
+        </div>
+        <div className="flex justify-between pt-1">
+          <Button variant="ghost" size="sm" onClick={onClear} className="h-7 text-xs">
+            Clear
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={!draftSource.trim()} className="h-7 text-xs">
+            Save override
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
