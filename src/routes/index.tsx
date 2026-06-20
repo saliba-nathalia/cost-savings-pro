@@ -588,7 +588,10 @@ function Index() {
     emailAht,
     messagingAht,
     numberOfAgents,
+    p2mPhoneCost,
+    p2mMessagingCost,
     fmt,
+
   ]);
 
   // Apply user edits from the Executive Summary across PDF and Presentation View
