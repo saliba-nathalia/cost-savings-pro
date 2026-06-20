@@ -363,9 +363,21 @@ function Index() {
 
   // Channel-specific AHTs (staffing)
   const [useChannelAht, setUseChannelAht] = useState(false);
-  const [voiceAht, setVoiceAht] = useState(BENCHMARK_AHT.voice);
-  const [emailAht, setEmailAht] = useState(BENCHMARK_AHT.email);
-  const [messagingAht, setMessagingAht] = useState(BENCHMARK_AHT.messaging);
+  const [voiceAht, setVoiceAht] = useState(8);
+  const [emailAht, setEmailAht] = useState(12);
+  const [messagingAht, setMessagingAht] = useState(6);
+
+  // Sync AHT defaults when the customer hasn't overridden them yet — when
+  // industry changes, push the new industry benchmark into the AHT inputs.
+  useEffect(() => {
+    const b = INDUSTRY_BENCHMARKS[industry];
+    if (!b) return;
+    setVoiceAht(b.voiceAht.value);
+    setEmailAht(b.emailAht.value);
+    setMessagingAht(b.messagingAht.value);
+    setAht(b.voiceAht.value);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [industry]);
 
   const derivedFromHourly = (hourlyCost / 60) * aht;
   const humanCost =
