@@ -35,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { CalculatorChat } from "@/components/CalculatorChat";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -2879,6 +2880,50 @@ function Index() {
           />
         )}
       </div>
+      <CalculatorChat
+        context={{
+          customerName,
+          currency,
+          industry,
+          customIndustry,
+          useCases: Array.from(useCases),
+          dataSource,
+          inputs: {
+            numberOfAgents,
+            annualVolume,
+            voiceVolume,
+            channelMix: { phonePct, messagingPct, emailPct },
+            costMode,
+            costPerInteraction,
+            supportModel,
+            hourlyCost,
+            aht,
+            useChannelAht,
+            voiceAht,
+            emailAht,
+            messagingAht,
+            aiCost,
+            softwareInvestment,
+            containmentMode,
+            resolutionRate,
+            automationType,
+            p2m: {
+              phoneVolume: p2mPhoneVolume,
+              deflection: p2mDeflection,
+              phoneCost: p2mPhoneCost,
+              messagingCost: p2mMessagingCost,
+              software: p2mSoftware,
+            },
+            occupancy,
+            shrinkage,
+            scenarioMode,
+            rampMonths,
+          },
+          benchmarks,
+          benchmarkOverrides,
+          results: { automationCalc, p2mCalc, workforce },
+        }}
+      />
     </TooltipProvider>
   );
 }
