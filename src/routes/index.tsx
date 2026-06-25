@@ -789,14 +789,20 @@ function Index() {
 
 
   const total = useMemo(() => {
+    // Baseline only meaningful for use cases with a defined baseline cost
     const baseline = (automationCalc?.baseline ?? 0) + (p2mCalc?.baseline ?? 0);
     const finalCost =
       (automationCalc?.finalCost ?? 0) + (p2mCalc?.finalCost ?? 0);
-    const savings = baseline - finalCost;
+    const extraSavings =
+      (agentAssistCalc?.savings ?? 0) +
+      (repeatCalc?.savings ?? 0) +
+      (transferCalc?.savings ?? 0);
+    const savings = baseline - finalCost + extraSavings;
     const software = (automationCalc?.software ?? 0) + (p2mCalc?.software ?? 0);
     const netBenefit = savings - software;
     const roi = software > 0 ? savings / software : 0;
-    const costReduction = baseline > 0 ? savings / baseline : 0;
+    const effectiveBaseline = baseline + extraSavings; // for cost-reduction %
+    const costReduction = effectiveBaseline > 0 ? savings / effectiveBaseline : 0;
     const paybackMonths = savings > 0 ? software / (savings / 12) : Infinity;
     return {
       baseline,
@@ -808,11 +814,11 @@ function Index() {
       costReduction,
       paybackMonths,
     };
-  }, [automationCalc, p2mCalc]);
+  }, [automationCalc, p2mCalc, agentAssistCalc, repeatCalc, transferCalc]);
 
   // Multi-year projection with ramp-up: Year 1 prorated by ramp curve, Years 2+ full run-rate
   const multiYear = useMemo(() => {
-    if (!(hasAutomation || hasP2M)) return null;
+    if (!hasFinancial) return null;
     const fullSavings = total.savings;
     const baseline = total.baseline;
     // Average attainment in Year 1 with linear ramp over `rampMonths` (capped at 12)
