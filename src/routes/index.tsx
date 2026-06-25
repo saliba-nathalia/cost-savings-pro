@@ -57,9 +57,72 @@ export const Route = createFileRoute("/")({
 type DataSource = "actual" | "assumption" | null;
 type SupportModel = "in_house" | "onshore" | "nearshore" | "offshore";
 type CostMode = "interaction" | "hour";
-type UseCaseKey = "automation" | "phone_to_messaging" | "staffing";
+type UseCaseKey =
+  | "automation"
+  | "phone_to_messaging"
+  | "staffing"
+  | "agent_assist"
+  | "repeat_contact"
+  | "transfer_reduction";
 type CurrencyCode = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "BRL";
 type AutomationType = "faq" | "api_1_3" | "api_3_5" | "api_5_8";
+
+/* ---------- Centralized Benchmark Library ----------
+ * Single source of truth for non-industry-specific assumptions. Update
+ * values/sources here and they flow into tooltips, summaries, and PDFs.
+ */
+export const BENCHMARK_LIBRARY = {
+  agentAssistAhtReduction: {
+    value: 15,
+    range: "10–20%",
+    source: "McKinsey, The economic potential of generative AI in customer ops (2024)",
+  },
+  agentAssistDocReduction: {
+    value: 40,
+    range: "30–50%",
+    source: "Salesforce State of Service 2024 (AI summarization)",
+  },
+  agentAssistKnowledgeReduction: {
+    value: 50,
+    range: "40–60%",
+    source: "Salesforce State of Service 2024 (AI knowledge surfacing)",
+  },
+  repeatContactRate: {
+    value: 22,
+    range: "15–30%",
+    source: "CCW Digital 2024 (FCR ~70–80%)",
+  },
+  repeatContactReduction: {
+    value: 25,
+    range: "20–35%",
+    source: "Gartner — FCR uplift via AI assist (2024)",
+  },
+  transferRate: {
+    value: 18,
+    range: "10–25%",
+    source: "ICMI Contact Center Benchmark (2024)",
+  },
+  transferReduction: {
+    value: 30,
+    range: "20–40%",
+    source: "Forrester — routing optimization (2024)",
+  },
+  averageTransferTimeMin: {
+    value: 2,
+    range: "1–3 min",
+    source: "ICMI Contact Center Benchmark (2024)",
+  },
+  qaAutomationTimeSavings: {
+    value: 70,
+    range: "60–80%",
+    source: "Observe.AI / Level AI vendor benchmarks (2024)",
+  },
+  waitTimeReduction: {
+    value: 25,
+    range: "15–35%",
+    source: "Zendesk CX Trends 2025",
+  },
+} as const;
 
 const HOURLY_DEFAULTS: Record<SupportModel, number> = {
   in_house: 25,
