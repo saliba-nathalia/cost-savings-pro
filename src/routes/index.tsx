@@ -839,7 +839,7 @@ function Index() {
     });
     const cumulativeRoi = total.software > 0 ? (y1Savings + y2Savings + y3Savings) / total.software : 0;
     return { rows: withCum, cumulativeRoi };
-  }, [hasAutomation, hasP2M, total, rampMonths]);
+  }, [hasFinancial, total, rampMonths]);
 
 
   /* ---------- Executive summary (structured) ---------- */
