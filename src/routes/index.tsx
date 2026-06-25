@@ -730,7 +730,7 @@ function Index() {
 
   const workforce = useMemo(() => {
     if (!hasStaffing) return null;
-    const totalVolume = hasAutomation ? annualVolume : voiceVolume;
+    const totalVolume = needsAnnualVolume ? annualVolume : voiceVolume;
     const phoneVol = totalVolume * (phonePct / 100);
     const msgVol = totalVolume * (messagingPct / 100);
     const emailVol = totalVolume * (emailPct / 100);
@@ -748,24 +748,11 @@ function Index() {
       msgHours = (msgVol * aht) / 60;
     }
     const requiredHours = voiceHours + emailHours + msgHours;
-    const productiveHoursPerAgent =
-      2080 * (1 - shrinkage / 100) * (occupancy / 100);
     const baselineRequiredAgents =
       productiveHoursPerAgent > 0 ? requiredHours / productiveHoursPerAgent : 0;
 
-    const weightedAht = useChannelAht
-      ? (phonePct * voiceAht + messagingPct * messagingAht + emailPct * emailAht) /
-        (phonePct + messagingPct + emailPct || 1)
-      : aht;
-    const aiResolved = automationCalc?.aiResolved ?? 0;
-    const p2mShifted = p2mCalc?.shifted ?? 0;
-    const p2mHoursSaved = useChannelAht
-      ? (p2mShifted * Math.max(0, voiceAht - messagingAht)) / 60
-      : 0;
-    const postHours = Math.max(
-      0,
-      requiredHours - (aiResolved * weightedAht) / 60 - p2mHoursSaved,
-    );
+    // Shared workforce engine: aggregate hours saved from all selected use cases
+    const postHours = Math.max(0, requiredHours - sharedWorkforce.totalHoursSaved);
     const postRequiredAgents =
       productiveHoursPerAgent > 0 ? postHours / productiveHoursPerAgent : 0;
     const fteFreed = Math.max(0, baselineRequiredAgents - postRequiredAgents);
@@ -785,7 +772,7 @@ function Index() {
     };
   }, [
     hasStaffing,
-    hasAutomation,
+    needsAnnualVolume,
     annualVolume,
     voiceVolume,
     phonePct,
@@ -796,11 +783,10 @@ function Index() {
     emailAht,
     messagingAht,
     aht,
-    occupancy,
-    shrinkage,
-    automationCalc,
-    p2mCalc,
+    productiveHoursPerAgent,
+    sharedWorkforce,
   ]);
+
 
   const total = useMemo(() => {
     const baseline = (automationCalc?.baseline ?? 0) + (p2mCalc?.baseline ?? 0);
