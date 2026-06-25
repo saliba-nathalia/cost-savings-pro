@@ -2477,7 +2477,113 @@ function Index() {
                     </>
                   )}
 
-                  <div className="flex justify-end pt-2">
+                  {/* Agent Assist inputs */}
+                  {hasAgentAssist && (
+                    <>
+                      <SubHeader title="Agent Assist / Copilot" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field
+                          label="AHT Reduction (%)"
+                          tooltip={`${BENCHMARK_LIBRARY.agentAssistAhtReduction.range} typical. Source: ${BENCHMARK_LIBRARY.agentAssistAhtReduction.source}`}
+                        >
+                          <NumberInput value={ahtReductionPct} onChange={setAhtReductionPct} />
+                        </Field>
+                        <Field
+                          label={`Software Investment / Annual (${currency})`}
+                        >
+                          <NumberInput value={agentAssistSoftware} onChange={setAgentAssistSoftware} />
+                        </Field>
+                      </div>
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <button type="button" className="mt-1 text-xs text-muted-foreground underline underline-offset-4">
+                            Optional: documentation & knowledge search time
+                          </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <Field label="Doc time / interaction (min)">
+                            <NumberInput value={docTimeMin} onChange={setDocTimeMin} step={0.1} />
+                          </Field>
+                          <Field label="Knowledge search / interaction (min)">
+                            <NumberInput value={knowledgeTimeMin} onChange={setKnowledgeTimeMin} step={0.1} />
+                          </Field>
+                          <Field label="After-call work (min)">
+                            <NumberInput value={acwMin} onChange={setAcwMin} step={0.1} />
+                          </Field>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </>
+                  )}
+
+                  {/* Repeat Contact Reduction */}
+                  {hasRepeat && (
+                    <>
+                      <SubHeader title="Repeat Contact Reduction" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field
+                          label="Current Repeat Contact Rate (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.repeatContactRate.range}. Source: ${BENCHMARK_LIBRARY.repeatContactRate.source}`}
+                        >
+                          <NumberInput value={repeatRatePct} onChange={setRepeatRatePct} />
+                        </Field>
+                        <Field
+                          label="Expected Reduction (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.repeatContactReduction.range}. Source: ${BENCHMARK_LIBRARY.repeatContactReduction.source}`}
+                        >
+                          <NumberInput value={repeatReductionPct} onChange={setRepeatReductionPct} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Routing / Transfer Reduction */}
+                  {hasTransfer && (
+                    <>
+                      <SubHeader title="Routing / Transfer Reduction" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <Field
+                          label="Current Transfer Rate (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.transferRate.range}. Source: ${BENCHMARK_LIBRARY.transferRate.source}`}
+                        >
+                          <NumberInput value={transferRatePct} onChange={setTransferRatePct} />
+                        </Field>
+                        <Field
+                          label="Expected Reduction (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.transferReduction.range}. Source: ${BENCHMARK_LIBRARY.transferReduction.source}`}
+                        >
+                          <NumberInput value={transferReductionPct} onChange={setTransferReductionPct} />
+                        </Field>
+                        <Field
+                          label="Avg Transfer Time (min)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.averageTransferTimeMin.range}. Source: ${BENCHMARK_LIBRARY.averageTransferTimeMin.source}`}
+                        >
+                          <NumberInput value={avgTransferMin} onChange={setAvgTransferMin} step={0.1} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Advanced Assumptions for agent_assist when staffing not selected */}
+                  {needsOccupancyShrinkage && !hasStaffing && (
+                    <Collapsible open={advOpen} onOpenChange={setAdvOpen}>
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="mt-2 flex w-full items-center justify-between rounded-lg border border-border bg-secondary/40 px-4 py-3 text-left text-sm">
+                          <span className="font-medium">Advanced Assumptions</span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${advOpen ? "rotate-180" : ""}`} />
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field label="Occupancy (%)" tooltip="Productive talk/handle time as % of logged-in time.">
+                          <NumberInput value={occupancy} onChange={setOccupancy} />
+                        </Field>
+                        <Field label="Shrinkage (%)" tooltip="Breaks, training, PTO, absenteeism.">
+                          <NumberInput value={shrinkage} onChange={setShrinkage} />
+                        </Field>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+
                     <Button onClick={handleContinueFromStep2}>
                       See Results
                     </Button>
