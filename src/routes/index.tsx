@@ -495,6 +495,7 @@ function Index() {
   );
   const [acwTimeMin, setAcwTimeMin] = useState(0);
   const [acwReductionPct, setAcwReductionPct] = useState(30);
+  const [agentAssistSoftware, setAgentAssistSoftware] = useState(50000);
 
   // Repeat Contact Reduction
   const [repeatRatePct, setRepeatRatePct] = useState(
