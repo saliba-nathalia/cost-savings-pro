@@ -800,7 +800,7 @@ function Index() {
       (repeatCalc?.savings ?? 0) +
       (transferCalc?.savings ?? 0);
     const savings = baseline - finalCost + extraSavings;
-    const software = (automationCalc?.software ?? 0) + (p2mCalc?.software ?? 0);
+    const software = (automationCalc?.software ?? 0) + (p2mCalc?.software ?? 0) + (agentAssistCalc?.software ?? 0);
     const netBenefit = savings - software;
     const roi = software > 0 ? savings / software : 0;
     const effectiveBaseline = baseline + extraSavings; // for cost-reduction %
