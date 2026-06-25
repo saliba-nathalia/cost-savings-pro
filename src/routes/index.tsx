@@ -24,7 +24,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2, TrendingDown, BarChart3, Lightbulb } from "lucide-react";
+import { Info, ChevronDown, Check, Pencil, X, Copy, Share2, Save, MessageSquare, Trash2, TrendingDown, BarChart3, Lightbulb, Wand2, Repeat, GitBranch } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -57,9 +57,72 @@ export const Route = createFileRoute("/")({
 type DataSource = "actual" | "assumption" | null;
 type SupportModel = "in_house" | "onshore" | "nearshore" | "offshore";
 type CostMode = "interaction" | "hour";
-type UseCaseKey = "automation" | "phone_to_messaging" | "staffing";
+type UseCaseKey =
+  | "automation"
+  | "phone_to_messaging"
+  | "staffing"
+  | "agent_assist"
+  | "repeat_contact"
+  | "transfer_reduction";
 type CurrencyCode = "USD" | "EUR" | "GBP" | "CAD" | "AUD" | "BRL";
 type AutomationType = "faq" | "api_1_3" | "api_3_5" | "api_5_8";
+
+/* ---------- Centralized Benchmark Library ----------
+ * Single source of truth for non-industry-specific assumptions. Update
+ * values/sources here and they flow into tooltips, summaries, and PDFs.
+ */
+export const BENCHMARK_LIBRARY = {
+  agentAssistAhtReduction: {
+    value: 15,
+    range: "10–20%",
+    source: "McKinsey, The economic potential of generative AI in customer ops (2024)",
+  },
+  agentAssistDocReduction: {
+    value: 40,
+    range: "30–50%",
+    source: "Salesforce State of Service 2024 (AI summarization)",
+  },
+  agentAssistKnowledgeReduction: {
+    value: 50,
+    range: "40–60%",
+    source: "Salesforce State of Service 2024 (AI knowledge surfacing)",
+  },
+  repeatContactRate: {
+    value: 22,
+    range: "15–30%",
+    source: "CCW Digital 2024 (FCR ~70–80%)",
+  },
+  repeatContactReduction: {
+    value: 25,
+    range: "20–35%",
+    source: "Gartner — FCR uplift via AI assist (2024)",
+  },
+  transferRate: {
+    value: 18,
+    range: "10–25%",
+    source: "ICMI Contact Center Benchmark (2024)",
+  },
+  transferReduction: {
+    value: 30,
+    range: "20–40%",
+    source: "Forrester — routing optimization (2024)",
+  },
+  averageTransferTimeMin: {
+    value: 2,
+    range: "1–3 min",
+    source: "ICMI Contact Center Benchmark (2024)",
+  },
+  qaAutomationTimeSavings: {
+    value: 70,
+    range: "60–80%",
+    source: "Observe.AI / Level AI vendor benchmarks (2024)",
+  },
+  waitTimeReduction: {
+    value: 25,
+    range: "15–35%",
+    source: "Zendesk CX Trends 2025",
+  },
+};
 
 const HOURLY_DEFAULTS: Record<SupportModel, number> = {
   in_house: 25,
@@ -291,6 +354,9 @@ const USE_CASE_LABELS: Record<UseCaseKey, string> = {
   automation: "Automation",
   phone_to_messaging: "Phone-to-Messaging",
   staffing: "Workforce Sizing",
+  agent_assist: "Agent Assist / Copilot",
+  repeat_contact: "Repeat Contact Reduction",
+  transfer_reduction: "Routing / Transfer Reduction",
 };
 
 /* ---------- Component ---------- */
@@ -333,6 +399,17 @@ function Index() {
   const hasAutomation = useCases.has("automation");
   const hasP2M = useCases.has("phone_to_messaging");
   const hasStaffing = useCases.has("staffing");
+  const hasAgentAssist = useCases.has("agent_assist");
+  const hasRepeat = useCases.has("repeat_contact");
+  const hasTransfer = useCases.has("transfer_reduction");
+  // Convenience: any use case that produces $ savings
+  const hasFinancial = hasAutomation || hasP2M || hasAgentAssist || hasRepeat || hasTransfer;
+  // Convenience: any use case that needs shared inputs
+  const needsAnnualVolume = hasAutomation || hasAgentAssist || hasRepeat || hasTransfer;
+  const needsAht = hasAutomation || hasAgentAssist || hasStaffing;
+  const needsCost = hasAutomation || hasAgentAssist || hasRepeat || hasTransfer;
+  const needsAgents = hasStaffing || hasAgentAssist;
+  const needsOccupancyShrinkage = hasStaffing || hasAgentAssist;
 
   const toggleUseCase = (k: UseCaseKey) => {
     setUseCases((prev) => {
@@ -403,6 +480,41 @@ function Index() {
   const [p2mPhoneCost, setP2mPhoneCost] = useState(6.0);
   const [p2mMessagingCost, setP2mMessagingCost] = useState(2.5);
   const [p2mSoftware, setP2mSoftware] = useState(120_000);
+
+  // Agent Assist / Copilot
+  const [ahtReductionPct, setAhtReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistAhtReduction.value,
+  );
+  const [docTimeMin, setDocTimeMin] = useState(0);
+  const [docReductionPct, setDocReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistDocReduction.value,
+  );
+  const [knowledgeTimeMin, setKnowledgeTimeMin] = useState(0);
+  const [knowledgeReductionPct, setKnowledgeReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistKnowledgeReduction.value,
+  );
+  const [acwTimeMin, setAcwTimeMin] = useState(0);
+  const [acwReductionPct, setAcwReductionPct] = useState(30);
+  const [agentAssistSoftware, setAgentAssistSoftware] = useState(50000);
+
+  // Repeat Contact Reduction
+  const [repeatRatePct, setRepeatRatePct] = useState(
+    BENCHMARK_LIBRARY.repeatContactRate.value,
+  );
+  const [repeatReductionPct, setRepeatReductionPct] = useState(
+    BENCHMARK_LIBRARY.repeatContactReduction.value,
+  );
+
+  // Routing / Transfer Reduction
+  const [transferRatePct, setTransferRatePct] = useState(
+    BENCHMARK_LIBRARY.transferRate.value,
+  );
+  const [avgTransferMin, setAvgTransferMin] = useState(
+    BENCHMARK_LIBRARY.averageTransferTimeMin.value,
+  );
+  const [transferReductionPct, setTransferReductionPct] = useState(
+    BENCHMARK_LIBRARY.transferReduction.value,
+  );
 
   // Advanced
   const [advOpen, setAdvOpen] = useState(false);
@@ -517,10 +629,110 @@ function Index() {
     };
   }, [hasP2M, p2mPhoneVolume, p2mDeflection, scenarioDelta, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
 
+  // Productive hours per agent — shared, used by workforce + capacity outputs
+  const productiveHoursPerAgent = useMemo(
+    () => 2080 * (1 - shrinkage / 100) * (occupancy / 100),
+    [shrinkage, occupancy],
+  );
+
+  // Agent Assist / Copilot Productivity
+  const agentAssistCalc = useMemo(() => {
+    if (!hasAgentAssist) return null;
+    const ahtMinSaved = aht * (ahtReductionPct / 100);
+    const docMinSaved = docTimeMin * (docReductionPct / 100);
+    const knowledgeMinSaved = knowledgeTimeMin * (knowledgeReductionPct / 100);
+    const acwMinSaved = acwTimeMin * (acwReductionPct / 100);
+    const perInteractionMinSaved =
+      ahtMinSaved + docMinSaved + knowledgeMinSaved + acwMinSaved;
+    const hoursSaved = (annualVolume * perInteractionMinSaved) / 60;
+    const capacityFreedPct = aht > 0 ? perInteractionMinSaved / aht : 0;
+    const equivalentAgents =
+      productiveHoursPerAgent > 0 ? hoursSaved / productiveHoursPerAgent : 0;
+    const effectiveHourly =
+      costMode === "interaction" && aht > 0
+        ? (costPerInteraction / aht) * 60
+        : hourlyCost;
+    const savings = hoursSaved * effectiveHourly;
+    return {
+      ahtMinSaved,
+      docMinSaved,
+      knowledgeMinSaved,
+      acwMinSaved,
+      perInteractionMinSaved,
+      hoursSaved,
+      capacityFreedPct,
+      equivalentAgents,
+      savings,
+      software: agentAssistSoftware,
+    };
+  }, [
+    hasAgentAssist, annualVolume, aht, ahtReductionPct,
+    docTimeMin, docReductionPct, knowledgeTimeMin, knowledgeReductionPct,
+    acwTimeMin, acwReductionPct, productiveHoursPerAgent,
+    costMode, costPerInteraction, hourlyCost, agentAssistSoftware,
+  ]);
+
+  // Repeat Contact Reduction
+  const repeatCalc = useMemo(() => {
+    if (!hasRepeat) return null;
+    const repeatsToday = annualVolume * (repeatRatePct / 100);
+    const repeatsEliminated = repeatsToday * (repeatReductionPct / 100);
+    const hoursSaved = (repeatsEliminated * aht) / 60;
+    const savings =
+      costMode === "interaction"
+        ? repeatsEliminated * humanCost
+        : hoursSaved * hourlyCost;
+    return { repeatsToday, repeatsEliminated, hoursSaved, savings };
+  }, [hasRepeat, annualVolume, repeatRatePct, repeatReductionPct, aht, costMode, humanCost, hourlyCost]);
+
+  // Routing / Transfer Reduction
+  const transferCalc = useMemo(() => {
+    if (!hasTransfer) return null;
+    const transfersToday = annualVolume * (transferRatePct / 100);
+    const transfersEliminated = transfersToday * (transferReductionPct / 100);
+    const minutesSaved = transfersEliminated * avgTransferMin;
+    const hoursSaved = minutesSaved / 60;
+    const savings = hoursSaved * hourlyCost;
+    return { transfersToday, transfersEliminated, minutesSaved, hoursSaved, savings };
+  }, [hasTransfer, annualVolume, transferRatePct, transferReductionPct, avgTransferMin, hourlyCost]);
+
+  // Shared Workforce Engine — aggregates hours saved across all selected use cases
+  const sharedWorkforce = useMemo(() => {
+    const automationHours = automationCalc
+      ? (automationCalc.aiResolved * aht) / 60
+      : 0;
+    const p2mHours = p2mCalc
+      ? useChannelAht
+        ? (p2mCalc.shifted * Math.max(0, voiceAht - messagingAht)) / 60
+        : 0
+      : 0;
+    const agentAssistHours = agentAssistCalc?.hoursSaved ?? 0;
+    const repeatHours = repeatCalc?.hoursSaved ?? 0;
+    const transferHours = transferCalc?.hoursSaved ?? 0;
+    const totalHoursSaved =
+      automationHours + p2mHours + agentAssistHours + repeatHours + transferHours;
+    const fteCapacityFreed =
+      productiveHoursPerAgent > 0 ? totalHoursSaved / productiveHoursPerAgent : 0;
+    return {
+      automationHours,
+      p2mHours,
+      agentAssistHours,
+      repeatHours,
+      transferHours,
+      totalHoursSaved,
+      fteCapacityFreed,
+      equivalentAgentsFreed: fteCapacityFreed,
+    };
+  }, [
+    automationCalc, p2mCalc, agentAssistCalc, repeatCalc, transferCalc,
+    aht, useChannelAht, voiceAht, messagingAht, productiveHoursPerAgent,
+  ]);
+
+
 
   const workforce = useMemo(() => {
     if (!hasStaffing) return null;
-    const totalVolume = hasAutomation ? annualVolume : voiceVolume;
+    const totalVolume = needsAnnualVolume ? annualVolume : voiceVolume;
     const phoneVol = totalVolume * (phonePct / 100);
     const msgVol = totalVolume * (messagingPct / 100);
     const emailVol = totalVolume * (emailPct / 100);
@@ -538,24 +750,11 @@ function Index() {
       msgHours = (msgVol * aht) / 60;
     }
     const requiredHours = voiceHours + emailHours + msgHours;
-    const productiveHoursPerAgent =
-      2080 * (1 - shrinkage / 100) * (occupancy / 100);
     const baselineRequiredAgents =
       productiveHoursPerAgent > 0 ? requiredHours / productiveHoursPerAgent : 0;
 
-    const weightedAht = useChannelAht
-      ? (phonePct * voiceAht + messagingPct * messagingAht + emailPct * emailAht) /
-        (phonePct + messagingPct + emailPct || 1)
-      : aht;
-    const aiResolved = automationCalc?.aiResolved ?? 0;
-    const p2mShifted = p2mCalc?.shifted ?? 0;
-    const p2mHoursSaved = useChannelAht
-      ? (p2mShifted * Math.max(0, voiceAht - messagingAht)) / 60
-      : 0;
-    const postHours = Math.max(
-      0,
-      requiredHours - (aiResolved * weightedAht) / 60 - p2mHoursSaved,
-    );
+    // Shared workforce engine: aggregate hours saved from all selected use cases
+    const postHours = Math.max(0, requiredHours - sharedWorkforce.totalHoursSaved);
     const postRequiredAgents =
       productiveHoursPerAgent > 0 ? postHours / productiveHoursPerAgent : 0;
     const fteFreed = Math.max(0, baselineRequiredAgents - postRequiredAgents);
@@ -575,7 +774,7 @@ function Index() {
     };
   }, [
     hasStaffing,
-    hasAutomation,
+    needsAnnualVolume,
     annualVolume,
     voiceVolume,
     phonePct,
@@ -586,21 +785,26 @@ function Index() {
     emailAht,
     messagingAht,
     aht,
-    occupancy,
-    shrinkage,
-    automationCalc,
-    p2mCalc,
+    productiveHoursPerAgent,
+    sharedWorkforce,
   ]);
 
+
   const total = useMemo(() => {
+    // Baseline only meaningful for use cases with a defined baseline cost
     const baseline = (automationCalc?.baseline ?? 0) + (p2mCalc?.baseline ?? 0);
     const finalCost =
       (automationCalc?.finalCost ?? 0) + (p2mCalc?.finalCost ?? 0);
-    const savings = baseline - finalCost;
-    const software = (automationCalc?.software ?? 0) + (p2mCalc?.software ?? 0);
+    const extraSavings =
+      (agentAssistCalc?.savings ?? 0) +
+      (repeatCalc?.savings ?? 0) +
+      (transferCalc?.savings ?? 0);
+    const savings = baseline - finalCost + extraSavings;
+    const software = (automationCalc?.software ?? 0) + (p2mCalc?.software ?? 0) + (agentAssistCalc?.software ?? 0);
     const netBenefit = savings - software;
     const roi = software > 0 ? savings / software : 0;
-    const costReduction = baseline > 0 ? savings / baseline : 0;
+    const effectiveBaseline = baseline + extraSavings; // for cost-reduction %
+    const costReduction = effectiveBaseline > 0 ? savings / effectiveBaseline : 0;
     const paybackMonths = savings > 0 ? software / (savings / 12) : Infinity;
     return {
       baseline,
@@ -612,11 +816,11 @@ function Index() {
       costReduction,
       paybackMonths,
     };
-  }, [automationCalc, p2mCalc]);
+  }, [automationCalc, p2mCalc, agentAssistCalc, repeatCalc, transferCalc]);
 
   // Multi-year projection with ramp-up: Year 1 prorated by ramp curve, Years 2+ full run-rate
   const multiYear = useMemo(() => {
-    if (!(hasAutomation || hasP2M)) return null;
+    if (!hasFinancial) return null;
     const fullSavings = total.savings;
     const baseline = total.baseline;
     // Average attainment in Year 1 with linear ramp over `rampMonths` (capped at 12)
@@ -637,7 +841,7 @@ function Index() {
     });
     const cumulativeRoi = total.software > 0 ? (y1Savings + y2Savings + y3Savings) / total.software : 0;
     return { rows: withCum, cumulativeRoi };
-  }, [hasAutomation, hasP2M, total, rampMonths]);
+  }, [hasFinancial, total, rampMonths]);
 
 
   /* ---------- Executive summary (structured) ---------- */
@@ -672,16 +876,36 @@ function Index() {
         `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year (${fmtNumber(p2mCalc.shifted)} calls shifted × (${fmt.fmtCurrency2(p2mPhoneCost)} phone − ${fmt.fmtCurrency2(p2mMessagingCost)} messaging)).`,
       );
     }
+    if (hasAgentAssist && agentAssistCalc) {
+      whatWeFound.push(
+        `Agent Assist trims about ${agentAssistCalc.perInteractionMinSaved.toFixed(1)} min per interaction (${(agentAssistCalc.capacityFreedPct * 100).toFixed(0)}% capacity freed), saving ~${fmtNumber(agentAssistCalc.hoursSaved)} hours/year — roughly ${agentAssistCalc.equivalentAgents.toFixed(0)} equivalent agents and ${fmt.compactCurrency(agentAssistCalc.savings)} in annual labor savings.`,
+      );
+    }
+    if (hasRepeat && repeatCalc) {
+      whatWeFound.push(
+        `Reducing repeat contacts by ${repeatReductionPct}% eliminates ~${fmtNumber(repeatCalc.repeatsEliminated)} interactions/year (${repeatRatePct}% repeat rate × ${repeatReductionPct}% reduction), saving ${fmtNumber(repeatCalc.hoursSaved)} hours and ${fmt.compactCurrency(repeatCalc.savings)}.`,
+      );
+    }
+    if (hasTransfer && transferCalc) {
+      whatWeFound.push(
+        `Better routing eliminates ~${fmtNumber(transferCalc.transfersEliminated)} transfers/year (${transferRatePct}% transfer rate × ${transferReductionPct}% reduction), saving ${fmtNumber(transferCalc.minutesSaved)} minutes / ${fmtNumber(transferCalc.hoursSaved)} hours and ${fmt.compactCurrency(transferCalc.savings)}.`,
+      );
+    }
     if (hasStaffing && workforce) {
-      if (hasAutomation || hasP2M) {
+      if (hasFinancial && (hasAutomation || hasP2M || hasAgentAssist || hasRepeat || hasTransfer)) {
         whatWeFound.push(
-          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
+          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after AI — freeing ${workforce.fteFreed.toFixed(0)} FTE across selected use cases.`,
         );
       } else {
         whatWeFound.push(
           `Staffing model: about ${workforce.baselineRequiredAgents.toFixed(0)} agents needed to handle today's workload (~${fmtNumber(workforce.requiredHours)} productive hours/year).`,
         );
       }
+    }
+    if (!hasStaffing && hasFinancial && sharedWorkforce.totalHoursSaved > 0) {
+      whatWeFound.push(
+        `Across selected use cases, AI frees ~${fmtNumber(sharedWorkforce.totalHoursSaved)} agent hours per year — equivalent to ${sharedWorkforce.equivalentAgentsFreed.toFixed(0)} full-time agents of capacity.`,
+      );
     }
 
     // What this means
@@ -836,7 +1060,9 @@ function Index() {
     p2mPhoneCost,
     p2mMessagingCost,
     fmt,
-
+    hasAgentAssist, hasRepeat, hasTransfer, hasFinancial,
+    agentAssistCalc, repeatCalc, transferCalc, sharedWorkforce,
+    repeatRatePct, repeatReductionPct, transferRatePct, transferReductionPct,
   ]);
 
   // Apply user edits from the Executive Summary across PDF and Presentation View
@@ -1738,6 +1964,30 @@ function Index() {
                   onClick={() => toggleUseCase("phone_to_messaging")}
                 />
                 <UseCaseCard
+                  active={hasAgentAssist}
+                  icon={<Wand2 className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Agent Assist / Copilot Productivity"
+                  desc="AI copilot shortens AHT, documentation, and knowledge search per interaction."
+                  onClick={() => toggleUseCase("agent_assist")}
+                />
+                <UseCaseCard
+                  active={hasRepeat}
+                  icon={<Repeat className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Repeat Contact Reduction"
+                  desc="Lift first-contact resolution to eliminate repeat interactions."
+                  onClick={() => toggleUseCase("repeat_contact")}
+                />
+                <UseCaseCard
+                  active={hasTransfer}
+                  icon={<GitBranch className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Routing / Transfer Reduction"
+                  desc="Smarter routing reduces transfers and the minutes lost handing off contacts."
+                  onClick={() => toggleUseCase("transfer_reduction")}
+                />
+                <UseCaseCard
                   active={hasStaffing}
                   icon={<BarChart3 className="h-4 w-4" />}
                   category="Analysis"
@@ -1747,6 +1997,7 @@ function Index() {
                 />
               </div>
             </Field>
+
 
             <div className="flex justify-end pt-2">
               <Button
@@ -1798,11 +2049,11 @@ function Index() {
               {dataSource !== null && (
                 <div className="space-y-6 pt-2">
                   {/* Volume — only what's needed */}
-                  {(hasAutomation || hasStaffing || hasP2M) && (
+                  {(needsAnnualVolume || hasStaffing || hasP2M) && (
                     <>
                       <SubHeader title="Volume" />
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        {hasAutomation && (
+                        {needsAnnualVolume && (
                           <Field label="Annual Interaction Volume">
                             <NumberInput
                               value={annualVolume}
@@ -1818,7 +2069,7 @@ function Index() {
                             />
                           </Field>
                         )}
-                        {hasStaffing && !hasAutomation && (
+                        {hasStaffing && !needsAnnualVolume && (
                           <Field label="Total Annual Volume">
                             <NumberInput
                               value={voiceVolume}
@@ -1826,7 +2077,7 @@ function Index() {
                             />
                           </Field>
                         )}
-                        {hasStaffing && (
+                        {needsAgents && (
                           <Field label="Number of Agents">
                             <NumberInput
                               value={numberOfAgents}
@@ -1837,6 +2088,7 @@ function Index() {
                       </div>
                     </>
                   )}
+
 
                   {/* Channel mix — only when staffing */}
                   {hasStaffing && (
@@ -1867,8 +2119,9 @@ function Index() {
                     </Field>
                   )}
 
-                  {/* Cost per Human Agent — only for automation */}
-                  {hasAutomation && (
+                  {/* Cost per Human Agent — needed for any cost-savings use case */}
+                  {needsCost && (
+
                     <>
                       <SubHeader title="Cost per Human Agent" />
                       <div className="flex flex-wrap gap-3">
@@ -2226,11 +2479,119 @@ function Index() {
                     </>
                   )}
 
+                  {/* Agent Assist inputs */}
+                  {hasAgentAssist && (
+                    <>
+                      <SubHeader title="Agent Assist / Copilot" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field
+                          label="AHT Reduction (%)"
+                          tooltip={`${BENCHMARK_LIBRARY.agentAssistAhtReduction.range} typical. Source: ${BENCHMARK_LIBRARY.agentAssistAhtReduction.source}`}
+                        >
+                          <NumberInput value={ahtReductionPct} onChange={setAhtReductionPct} />
+                        </Field>
+                        <Field
+                          label={`Software Investment / Annual (${currency})`}
+                        >
+                          <NumberInput value={agentAssistSoftware} onChange={setAgentAssistSoftware} />
+                        </Field>
+                      </div>
+                      <Collapsible>
+                        <CollapsibleTrigger asChild>
+                          <button type="button" className="mt-1 text-xs text-muted-foreground underline underline-offset-4">
+                            Optional: documentation & knowledge search time
+                          </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <Field label="Doc time / interaction (min)">
+                            <NumberInput value={docTimeMin} onChange={setDocTimeMin} step={0.1} />
+                          </Field>
+                          <Field label="Knowledge search / interaction (min)">
+                            <NumberInput value={knowledgeTimeMin} onChange={setKnowledgeTimeMin} step={0.1} />
+                          </Field>
+                          <Field label="After-call work (min)">
+                            <NumberInput value={acwTimeMin} onChange={setAcwTimeMin} step={0.1} />
+                          </Field>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </>
+                  )}
+
+                  {/* Repeat Contact Reduction */}
+                  {hasRepeat && (
+                    <>
+                      <SubHeader title="Repeat Contact Reduction" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field
+                          label="Current Repeat Contact Rate (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.repeatContactRate.range}. Source: ${BENCHMARK_LIBRARY.repeatContactRate.source}`}
+                        >
+                          <NumberInput value={repeatRatePct} onChange={setRepeatRatePct} />
+                        </Field>
+                        <Field
+                          label="Expected Reduction (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.repeatContactReduction.range}. Source: ${BENCHMARK_LIBRARY.repeatContactReduction.source}`}
+                        >
+                          <NumberInput value={repeatReductionPct} onChange={setRepeatReductionPct} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Routing / Transfer Reduction */}
+                  {hasTransfer && (
+                    <>
+                      <SubHeader title="Routing / Transfer Reduction" />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <Field
+                          label="Current Transfer Rate (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.transferRate.range}. Source: ${BENCHMARK_LIBRARY.transferRate.source}`}
+                        >
+                          <NumberInput value={transferRatePct} onChange={setTransferRatePct} />
+                        </Field>
+                        <Field
+                          label="Expected Reduction (%)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.transferReduction.range}. Source: ${BENCHMARK_LIBRARY.transferReduction.source}`}
+                        >
+                          <NumberInput value={transferReductionPct} onChange={setTransferReductionPct} />
+                        </Field>
+                        <Field
+                          label="Avg Transfer Time (min)"
+                          tooltip={`Benchmark ${BENCHMARK_LIBRARY.averageTransferTimeMin.range}. Source: ${BENCHMARK_LIBRARY.averageTransferTimeMin.source}`}
+                        >
+                          <NumberInput value={avgTransferMin} onChange={setAvgTransferMin} step={0.1} />
+                        </Field>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Advanced Assumptions for agent_assist when staffing not selected */}
+                  {needsOccupancyShrinkage && !hasStaffing && (
+                    <Collapsible open={advOpen} onOpenChange={setAdvOpen}>
+                      <CollapsibleTrigger asChild>
+                        <button type="button" className="mt-2 flex w-full items-center justify-between rounded-lg border border-border bg-secondary/40 px-4 py-3 text-left text-sm">
+                          <span className="font-medium">Advanced Assumptions</span>
+                          <ChevronDown className={`h-4 w-4 transition-transform ${advOpen ? "rotate-180" : ""}`} />
+                        </button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Field label="Occupancy (%)" tooltip="Productive talk/handle time as % of logged-in time.">
+                          <NumberInput value={occupancy} onChange={setOccupancy} />
+                        </Field>
+                        <Field label="Shrinkage (%)" tooltip="Breaks, training, PTO, absenteeism.">
+                          <NumberInput value={shrinkage} onChange={setShrinkage} />
+                        </Field>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+
                   <div className="flex justify-end pt-2">
                     <Button onClick={handleContinueFromStep2}>
                       See Results
                     </Button>
                   </div>
+
                 </div>
               )}
             </Section>
