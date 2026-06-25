@@ -481,6 +481,40 @@ function Index() {
   const [p2mMessagingCost, setP2mMessagingCost] = useState(2.5);
   const [p2mSoftware, setP2mSoftware] = useState(120_000);
 
+  // Agent Assist / Copilot
+  const [ahtReductionPct, setAhtReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistAhtReduction.value,
+  );
+  const [docTimeMin, setDocTimeMin] = useState(0);
+  const [docReductionPct, setDocReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistDocReduction.value,
+  );
+  const [knowledgeTimeMin, setKnowledgeTimeMin] = useState(0);
+  const [knowledgeReductionPct, setKnowledgeReductionPct] = useState(
+    BENCHMARK_LIBRARY.agentAssistKnowledgeReduction.value,
+  );
+  const [acwTimeMin, setAcwTimeMin] = useState(0);
+  const [acwReductionPct, setAcwReductionPct] = useState(30);
+
+  // Repeat Contact Reduction
+  const [repeatRatePct, setRepeatRatePct] = useState(
+    BENCHMARK_LIBRARY.repeatContactRate.value,
+  );
+  const [repeatReductionPct, setRepeatReductionPct] = useState(
+    BENCHMARK_LIBRARY.repeatContactReduction.value,
+  );
+
+  // Routing / Transfer Reduction
+  const [transferRatePct, setTransferRatePct] = useState(
+    BENCHMARK_LIBRARY.transferRate.value,
+  );
+  const [avgTransferMin, setAvgTransferMin] = useState(
+    BENCHMARK_LIBRARY.averageTransferTimeMin.value,
+  );
+  const [transferReductionPct, setTransferReductionPct] = useState(
+    BENCHMARK_LIBRARY.transferReduction.value,
+  );
+
   // Advanced
   const [advOpen, setAdvOpen] = useState(false);
   const [occupancy, setOccupancy] = useState(80);
