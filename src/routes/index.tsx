@@ -2584,10 +2584,12 @@ function Index() {
                   )}
 
 
+                  <div className="flex justify-end pt-2">
                     <Button onClick={handleContinueFromStep2}>
                       See Results
                     </Button>
                   </div>
+
                 </div>
               )}
             </Section>
