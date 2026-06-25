@@ -628,6 +628,105 @@ function Index() {
     };
   }, [hasP2M, p2mPhoneVolume, p2mDeflection, scenarioDelta, p2mPhoneCost, p2mMessagingCost, p2mSoftware]);
 
+  // Productive hours per agent — shared, used by workforce + capacity outputs
+  const productiveHoursPerAgent = useMemo(
+    () => 2080 * (1 - shrinkage / 100) * (occupancy / 100),
+    [shrinkage, occupancy],
+  );
+
+  // Agent Assist / Copilot Productivity
+  const agentAssistCalc = useMemo(() => {
+    if (!hasAgentAssist) return null;
+    const ahtMinSaved = aht * (ahtReductionPct / 100);
+    const docMinSaved = docTimeMin * (docReductionPct / 100);
+    const knowledgeMinSaved = knowledgeTimeMin * (knowledgeReductionPct / 100);
+    const acwMinSaved = acwTimeMin * (acwReductionPct / 100);
+    const perInteractionMinSaved =
+      ahtMinSaved + docMinSaved + knowledgeMinSaved + acwMinSaved;
+    const hoursSaved = (annualVolume * perInteractionMinSaved) / 60;
+    const capacityFreedPct = aht > 0 ? perInteractionMinSaved / aht : 0;
+    const equivalentAgents =
+      productiveHoursPerAgent > 0 ? hoursSaved / productiveHoursPerAgent : 0;
+    const effectiveHourly =
+      costMode === "interaction" && aht > 0
+        ? (costPerInteraction / aht) * 60
+        : hourlyCost;
+    const savings = hoursSaved * effectiveHourly;
+    return {
+      ahtMinSaved,
+      docMinSaved,
+      knowledgeMinSaved,
+      acwMinSaved,
+      perInteractionMinSaved,
+      hoursSaved,
+      capacityFreedPct,
+      equivalentAgents,
+      savings,
+    };
+  }, [
+    hasAgentAssist, annualVolume, aht, ahtReductionPct,
+    docTimeMin, docReductionPct, knowledgeTimeMin, knowledgeReductionPct,
+    acwTimeMin, acwReductionPct, productiveHoursPerAgent,
+    costMode, costPerInteraction, hourlyCost,
+  ]);
+
+  // Repeat Contact Reduction
+  const repeatCalc = useMemo(() => {
+    if (!hasRepeat) return null;
+    const repeatsToday = annualVolume * (repeatRatePct / 100);
+    const repeatsEliminated = repeatsToday * (repeatReductionPct / 100);
+    const hoursSaved = (repeatsEliminated * aht) / 60;
+    const savings =
+      costMode === "interaction"
+        ? repeatsEliminated * humanCost
+        : hoursSaved * hourlyCost;
+    return { repeatsToday, repeatsEliminated, hoursSaved, savings };
+  }, [hasRepeat, annualVolume, repeatRatePct, repeatReductionPct, aht, costMode, humanCost, hourlyCost]);
+
+  // Routing / Transfer Reduction
+  const transferCalc = useMemo(() => {
+    if (!hasTransfer) return null;
+    const transfersToday = annualVolume * (transferRatePct / 100);
+    const transfersEliminated = transfersToday * (transferReductionPct / 100);
+    const minutesSaved = transfersEliminated * avgTransferMin;
+    const hoursSaved = minutesSaved / 60;
+    const savings = hoursSaved * hourlyCost;
+    return { transfersToday, transfersEliminated, minutesSaved, hoursSaved, savings };
+  }, [hasTransfer, annualVolume, transferRatePct, transferReductionPct, avgTransferMin, hourlyCost]);
+
+  // Shared Workforce Engine — aggregates hours saved across all selected use cases
+  const sharedWorkforce = useMemo(() => {
+    const automationHours = automationCalc
+      ? (automationCalc.aiResolved * aht) / 60
+      : 0;
+    const p2mHours = p2mCalc
+      ? useChannelAht
+        ? (p2mCalc.shifted * Math.max(0, voiceAht - messagingAht)) / 60
+        : 0
+      : 0;
+    const agentAssistHours = agentAssistCalc?.hoursSaved ?? 0;
+    const repeatHours = repeatCalc?.hoursSaved ?? 0;
+    const transferHours = transferCalc?.hoursSaved ?? 0;
+    const totalHoursSaved =
+      automationHours + p2mHours + agentAssistHours + repeatHours + transferHours;
+    const fteCapacityFreed =
+      productiveHoursPerAgent > 0 ? totalHoursSaved / productiveHoursPerAgent : 0;
+    return {
+      automationHours,
+      p2mHours,
+      agentAssistHours,
+      repeatHours,
+      transferHours,
+      totalHoursSaved,
+      fteCapacityFreed,
+      equivalentAgentsFreed: fteCapacityFreed,
+    };
+  }, [
+    automationCalc, p2mCalc, agentAssistCalc, repeatCalc, transferCalc,
+    aht, useChannelAht, voiceAht, messagingAht, productiveHoursPerAgent,
+  ]);
+
+
 
   const workforce = useMemo(() => {
     if (!hasStaffing) return null;
