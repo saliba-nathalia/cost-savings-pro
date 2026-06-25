@@ -122,7 +122,7 @@ export const BENCHMARK_LIBRARY = {
     range: "15–35%",
     source: "Zendesk CX Trends 2025",
   },
-} as const;
+};
 
 const HOURLY_DEFAULTS: Record<SupportModel, number> = {
   in_house: 25,
