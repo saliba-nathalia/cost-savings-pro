@@ -1058,7 +1058,9 @@ function Index() {
     p2mPhoneCost,
     p2mMessagingCost,
     fmt,
-
+    hasAgentAssist, hasRepeat, hasTransfer, hasFinancial,
+    agentAssistCalc, repeatCalc, transferCalc, sharedWorkforce,
+    repeatRatePct, repeatReductionPct, transferRatePct, transferReductionPct,
   ]);
 
   // Apply user edits from the Executive Summary across PDF and Presentation View
