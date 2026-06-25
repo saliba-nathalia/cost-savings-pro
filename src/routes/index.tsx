@@ -663,6 +663,7 @@ function Index() {
       capacityFreedPct,
       equivalentAgents,
       savings,
+      software: agentAssistSoftware,
     };
   }, [
     hasAgentAssist, annualVolume, aht, ahtReductionPct,
