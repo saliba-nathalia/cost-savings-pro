@@ -2117,8 +2117,9 @@ function Index() {
                     </Field>
                   )}
 
-                  {/* Cost per Human Agent — only for automation */}
-                  {hasAutomation && (
+                  {/* Cost per Human Agent — needed for any cost-savings use case */}
+                  {needsCost && (
+
                     <>
                       <SubHeader title="Cost per Human Agent" />
                       <div className="flex flex-wrap gap-3">
