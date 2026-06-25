@@ -399,6 +399,17 @@ function Index() {
   const hasAutomation = useCases.has("automation");
   const hasP2M = useCases.has("phone_to_messaging");
   const hasStaffing = useCases.has("staffing");
+  const hasAgentAssist = useCases.has("agent_assist");
+  const hasRepeat = useCases.has("repeat_contact");
+  const hasTransfer = useCases.has("transfer_reduction");
+  // Convenience: any use case that produces $ savings
+  const hasFinancial = hasAutomation || hasP2M || hasAgentAssist || hasRepeat || hasTransfer;
+  // Convenience: any use case that needs shared inputs
+  const needsAnnualVolume = hasAutomation || hasAgentAssist || hasRepeat || hasTransfer;
+  const needsAht = hasAutomation || hasAgentAssist || hasStaffing;
+  const needsCost = hasAutomation || hasAgentAssist || hasRepeat || hasTransfer;
+  const needsAgents = hasStaffing || hasAgentAssist;
+  const needsOccupancyShrinkage = hasStaffing || hasAgentAssist;
 
   const toggleUseCase = (k: UseCaseKey) => {
     setUseCases((prev) => {
