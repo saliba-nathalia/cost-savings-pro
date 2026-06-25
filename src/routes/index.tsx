@@ -1962,6 +1962,30 @@ function Index() {
                   onClick={() => toggleUseCase("phone_to_messaging")}
                 />
                 <UseCaseCard
+                  active={hasAgentAssist}
+                  icon={<Wand2 className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Agent Assist / Copilot Productivity"
+                  desc="AI copilot shortens AHT, documentation, and knowledge search per interaction."
+                  onClick={() => toggleUseCase("agent_assist")}
+                />
+                <UseCaseCard
+                  active={hasRepeat}
+                  icon={<Repeat className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Repeat Contact Reduction"
+                  desc="Lift first-contact resolution to eliminate repeat interactions."
+                  onClick={() => toggleUseCase("repeat_contact")}
+                />
+                <UseCaseCard
+                  active={hasTransfer}
+                  icon={<GitBranch className="h-4 w-4" />}
+                  category="Cost reduction"
+                  title="Routing / Transfer Reduction"
+                  desc="Smarter routing reduces transfers and the minutes lost handing off contacts."
+                  onClick={() => toggleUseCase("transfer_reduction")}
+                />
+                <UseCaseCard
                   active={hasStaffing}
                   icon={<BarChart3 className="h-4 w-4" />}
                   category="Analysis"
@@ -1971,6 +1995,7 @@ function Index() {
                 />
               </div>
             </Field>
+
 
             <div className="flex justify-end pt-2">
               <Button
