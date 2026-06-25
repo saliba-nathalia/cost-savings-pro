@@ -2508,7 +2508,7 @@ function Index() {
                             <NumberInput value={knowledgeTimeMin} onChange={setKnowledgeTimeMin} step={0.1} />
                           </Field>
                           <Field label="After-call work (min)">
-                            <NumberInput value={acwMin} onChange={setAcwMin} step={0.1} />
+                            <NumberInput value={acwTimeMin} onChange={setAcwTimeMin} step={0.1} />
                           </Field>
                         </CollapsibleContent>
                       </Collapsible>
