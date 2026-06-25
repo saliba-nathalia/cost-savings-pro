@@ -354,6 +354,9 @@ const USE_CASE_LABELS: Record<UseCaseKey, string> = {
   automation: "Automation",
   phone_to_messaging: "Phone-to-Messaging",
   staffing: "Workforce Sizing",
+  agent_assist: "Agent Assist / Copilot",
+  repeat_contact: "Repeat Contact Reduction",
+  transfer_reduction: "Routing / Transfer Reduction",
 };
 
 /* ---------- Component ---------- */
