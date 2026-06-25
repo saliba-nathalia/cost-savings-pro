@@ -669,7 +669,7 @@ function Index() {
     hasAgentAssist, annualVolume, aht, ahtReductionPct,
     docTimeMin, docReductionPct, knowledgeTimeMin, knowledgeReductionPct,
     acwTimeMin, acwReductionPct, productiveHoursPerAgent,
-    costMode, costPerInteraction, hourlyCost,
+    costMode, costPerInteraction, hourlyCost, agentAssistSoftware,
   ]);
 
   // Repeat Contact Reduction
