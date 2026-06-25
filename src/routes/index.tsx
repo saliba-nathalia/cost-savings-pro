@@ -874,16 +874,36 @@ function Index() {
         `Shifting ${p2mDeflection}% of phone calls to messaging saves ${fmt.compactCurrency(p2mCalc.savings)} a year (${fmtNumber(p2mCalc.shifted)} calls shifted × (${fmt.fmtCurrency2(p2mPhoneCost)} phone − ${fmt.fmtCurrency2(p2mMessagingCost)} messaging)).`,
       );
     }
+    if (hasAgentAssist && agentAssistCalc) {
+      whatWeFound.push(
+        `Agent Assist trims about ${agentAssistCalc.perInteractionMinSaved.toFixed(1)} min per interaction (${(agentAssistCalc.capacityFreedPct * 100).toFixed(0)}% capacity freed), saving ~${fmtNumber(agentAssistCalc.hoursSaved)} hours/year — roughly ${agentAssistCalc.equivalentAgents.toFixed(0)} equivalent agents and ${fmt.compactCurrency(agentAssistCalc.savings)} in annual labor savings.`,
+      );
+    }
+    if (hasRepeat && repeatCalc) {
+      whatWeFound.push(
+        `Reducing repeat contacts by ${repeatReductionPct}% eliminates ~${fmtNumber(repeatCalc.repeatsEliminated)} interactions/year (${repeatRatePct}% repeat rate × ${repeatReductionPct}% reduction), saving ${fmtNumber(repeatCalc.hoursSaved)} hours and ${fmt.compactCurrency(repeatCalc.savings)}.`,
+      );
+    }
+    if (hasTransfer && transferCalc) {
+      whatWeFound.push(
+        `Better routing eliminates ~${fmtNumber(transferCalc.transfersEliminated)} transfers/year (${transferRatePct}% transfer rate × ${transferReductionPct}% reduction), saving ${fmtNumber(transferCalc.minutesSaved)} minutes / ${fmtNumber(transferCalc.hoursSaved)} hours and ${fmt.compactCurrency(transferCalc.savings)}.`,
+      );
+    }
     if (hasStaffing && workforce) {
-      if (hasAutomation || hasP2M) {
+      if (hasFinancial && (hasAutomation || hasP2M || hasAgentAssist || hasRepeat || hasTransfer)) {
         whatWeFound.push(
-          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after automation — freeing ${workforce.fteFreed.toFixed(0)} FTE.`,
+          `Staffing model: ${workforce.baselineRequiredAgents.toFixed(0)} agents needed today, ${workforce.postRequiredAgents.toFixed(0)} after AI — freeing ${workforce.fteFreed.toFixed(0)} FTE across selected use cases.`,
         );
       } else {
         whatWeFound.push(
           `Staffing model: about ${workforce.baselineRequiredAgents.toFixed(0)} agents needed to handle today's workload (~${fmtNumber(workforce.requiredHours)} productive hours/year).`,
         );
       }
+    }
+    if (!hasStaffing && hasFinancial && sharedWorkforce.totalHoursSaved > 0) {
+      whatWeFound.push(
+        `Across selected use cases, AI frees ~${fmtNumber(sharedWorkforce.totalHoursSaved)} agent hours per year — equivalent to ${sharedWorkforce.equivalentAgentsFreed.toFixed(0)} full-time agents of capacity.`,
+      );
     }
 
     // What this means
