@@ -2047,11 +2047,11 @@ function Index() {
               {dataSource !== null && (
                 <div className="space-y-6 pt-2">
                   {/* Volume — only what's needed */}
-                  {(hasAutomation || hasStaffing || hasP2M) && (
+                  {(needsAnnualVolume || hasStaffing || hasP2M) && (
                     <>
                       <SubHeader title="Volume" />
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        {hasAutomation && (
+                        {needsAnnualVolume && (
                           <Field label="Annual Interaction Volume">
                             <NumberInput
                               value={annualVolume}
@@ -2067,7 +2067,7 @@ function Index() {
                             />
                           </Field>
                         )}
-                        {hasStaffing && !hasAutomation && (
+                        {hasStaffing && !needsAnnualVolume && (
                           <Field label="Total Annual Volume">
                             <NumberInput
                               value={voiceVolume}
@@ -2075,7 +2075,7 @@ function Index() {
                             />
                           </Field>
                         )}
-                        {hasStaffing && (
+                        {needsAgents && (
                           <Field label="Number of Agents">
                             <NumberInput
                               value={numberOfAgents}
@@ -2086,6 +2086,7 @@ function Index() {
                       </div>
                     </>
                   )}
+
 
                   {/* Channel mix — only when staffing */}
                   {hasStaffing && (
